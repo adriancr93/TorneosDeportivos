@@ -1,91 +1,208 @@
 package org.example.view;
 
-import org.example.controller.MainController;
+import org.example.controller.TorneoController;
 import org.example.model.*;
 import org.example.util.LoggerUtil;
 
 import java.util.List;
 import java.util.Scanner;
 
+import static org.example.view.ConsoleUI.*;
+
 public class ConsoleView {
-    private final MainController controller;
+    private final TorneoController controller;
     private final Scanner scanner;
 
-    public ConsoleView(MainController controller) {
+    public ConsoleView(TorneoController controller) {
         this.controller = controller;
         this.scanner = new Scanner(System.in);
     }
 
+    // ─── Menú principal ────────────────────────────────
+
     public void mostrarMenu() {
         int opcion;
         do {
-            imprimirBanner();
+            imprimirMenuPrincipal();
             opcion = leerEntero("Seleccione una opción: ");
             try {
-                ejecutarOpcion(opcion);
+                ejecutarOpcionPrincipal(opcion);
             } catch (Exception e) {
-                System.out.println("Ocurrió un error procesando la opción. Consulte logs.");
+                printError("Ocurrió un error procesando la opción. Consulte logs.");
                 LoggerUtil.logError("Error en opción de menú: " + opcion, e);
             }
         } while (opcion != 0);
-        System.out.println("Hasta pronto.");
+        printHeader("¡Hasta pronto!");
     }
 
-    private void imprimirBanner() {
-        System.out.println("\n=== Sistema de Gestión de Torneos Deportivos ===");
-        System.out.println("1) Equipos - Crear");
-        System.out.println("2) Equipos - Editar");
-        System.out.println("3) Equipos - Eliminar");
-        System.out.println("4) Equipos - Listar");
-        System.out.println("5) Jugadores - Registrar");
-        System.out.println("6) Jugadores - Asociar a equipo");
-        System.out.println("7) Jugadores - Listar por equipo");
-        System.out.println("8) Torneos - Crear");
-        System.out.println("9) Torneos - Agregar equipo");
-        System.out.println("10) Torneos - Activar");
-        System.out.println("11) Torneos - Finalizar");
-        System.out.println("12) Torneos - Listar");
-        System.out.println("13) Partidos - Generar fixture");
-        System.out.println("14) Partidos - Registrar resultado");
-        System.out.println("15) Partidos - Listar por torneo");
-        System.out.println("16) Estadísticas - Generar");
-        System.out.println("17) Estadísticas - Visualizar");
-        System.out.println("18) Reporte - Equipo con más goles");
-        System.out.println("19) Reporte - Jugador con más goles");
-        System.out.println("20) Reporte - Historial torneos");
-        System.out.println("0) Salir");
+    private void imprimirMenuPrincipal() {
+        printHeader("⚽  SISTEMA DE GESTIÓN DE TORNEOS DEPORTIVOS  ⚽");
+        System.out.println();
+        printMenuOption(1, "Gestión de Equipos");
+        printMenuOption(2, "Gestión de Jugadores");
+        printMenuOption(3, "Gestión de Torneos");
+        printMenuOption(4, "Gestión de Partidos");
+        printMenuOption(5, "Estadísticas");
+        printMenuOption(6, "Reportes");
+        printMenuExit();
+        printSeparator();
     }
 
-    private void ejecutarOpcion(int opcion) {
+    private void ejecutarOpcionPrincipal(int opcion) {
         switch (opcion) {
-            case 1 -> crearEquipo();
-            case 2 -> editarEquipo();
-            case 3 -> eliminarEquipo();
-            case 4 -> listarEquipos();
-            case 5 -> registrarJugador();
-            case 6 -> asociarJugador();
-            case 7 -> listarJugadoresPorEquipo();
-            case 8 -> crearTorneo();
-            case 9 -> agregarEquipoATorneo();
-            case 10 -> activarTorneo();
-            case 11 -> finalizarTorneo();
-            case 12 -> listarTorneos();
-            case 13 -> generarPartidos();
-            case 14 -> registrarResultado();
-            case 15 -> listarPartidosPorTorneo();
-            case 16 -> generarEstadisticas();
-            case 17 -> visualizarEstadisticas();
-            case 18 -> equipoMasGoles();
-            case 19 -> jugadorMasGoles();
-            case 20 -> historialTorneos();
-            case 0 -> {
-            }
-            default -> System.out.println("Opción inválida.");
+            case 1 -> menuEquipos();
+            case 2 -> menuJugadores();
+            case 3 -> menuTorneos();
+            case 4 -> menuPartidos();
+            case 5 -> menuEstadisticas();
+            case 6 -> menuReportes();
+            case 0 -> { }
+            default -> printWarning("Opción inválida. Intente de nuevo.");
         }
     }
 
-    // --- Equipos ---
+    // ─── Submenú Equipos ───────────────────────────────
+
+    private void menuEquipos() {
+        int opcion;
+        do {
+            printSubHeader("GESTIÓN DE EQUIPOS");
+            printMenuOption(1, "Crear equipo");
+            printMenuOption(2, "Editar equipo");
+            printMenuOption(3, "Eliminar equipo");
+            printMenuOption(4, "Listar equipos");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> crearEquipo();
+                case 2 -> editarEquipo();
+                case 3 -> eliminarEquipo();
+                case 4 -> listarEquipos();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ─── Submenú Jugadores ─────────────────────────────
+
+    private void menuJugadores() {
+        int opcion;
+        do {
+            printSubHeader("GESTIÓN DE JUGADORES");
+            printMenuOption(1, "Registrar jugador");
+            printMenuOption(2, "Asociar jugador a equipo");
+            printMenuOption(3, "Listar jugadores por equipo");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> registrarJugador();
+                case 2 -> asociarJugador();
+                case 3 -> listarJugadoresPorEquipo();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ─── Submenú Torneos ───────────────────────────────
+
+    private void menuTorneos() {
+        int opcion;
+        do {
+            printSubHeader("GESTIÓN DE TORNEOS");
+            printMenuOption(1, "Crear torneo");
+            printMenuOption(2, "Agregar equipo a torneo");
+            printMenuOption(3, "Activar torneo");
+            printMenuOption(4, "Finalizar torneo");
+            printMenuOption(5, "Listar torneos");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> crearTorneo();
+                case 2 -> agregarEquipoATorneo();
+                case 3 -> activarTorneo();
+                case 4 -> finalizarTorneo();
+                case 5 -> listarTorneos();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ─── Submenú Partidos ──────────────────────────────
+
+    private void menuPartidos() {
+        int opcion;
+        do {
+            printSubHeader("GESTIÓN DE PARTIDOS");
+            printMenuOption(1, "Generar fixture");
+            printMenuOption(2, "Registrar resultado");
+            printMenuOption(3, "Listar partidos por torneo");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> generarPartidos();
+                case 2 -> registrarResultado();
+                case 3 -> listarPartidosPorTorneo();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ─── Submenú Estadísticas ──────────────────────────
+
+    private void menuEstadisticas() {
+        int opcion;
+        do {
+            printSubHeader("ESTADÍSTICAS");
+            printMenuOption(1, "Generar estadísticas");
+            printMenuOption(2, "Visualizar estadísticas");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> generarEstadisticas();
+                case 2 -> visualizarEstadisticas();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ─── Submenú Reportes ──────────────────────────────
+
+    private void menuReportes() {
+        int opcion;
+        do {
+            printSubHeader("REPORTES");
+            printMenuOption(1, "Equipo con más goles");
+            printMenuOption(2, "Jugador con más goles");
+            printMenuOption(3, "Historial de torneos");
+            printMenuExit();
+            printSeparator();
+            opcion = leerEntero("Seleccione una opción: ");
+            switch (opcion) {
+                case 1 -> equipoMasGoles();
+                case 2 -> jugadorMasGoles();
+                case 3 -> historialTorneos();
+                case 0 -> { }
+                default -> printWarning("Opción inválida.");
+            }
+        } while (opcion != 0);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Equipos
+    // ═══════════════════════════════════════════════════
+
     private void crearEquipo() {
+        printSubHeader("CREAR EQUIPO");
         String nombre = leerTexto("Nombre del equipo: ");
         String ciudad = leerTexto("Ciudad: ");
         int anio = leerEntero("Año de fundación: ");
@@ -96,35 +213,76 @@ public class ConsoleView {
         equipo.setAnioFundacion(anio);
         equipo.setEntrenador(entrenador);
         Equipo creado = controller.crearEquipo(equipo);
-        System.out.println(creado != null ? "Equipo creado: " + creado : "No se pudo crear el equipo.");
+        if (creado != null) {
+            printSuccess("Equipo creado exitosamente");
+            printDetail("ID", creado.getId());
+            printDetail("Nombre", creado.getNombre());
+            printDetail("Ciudad", creado.getCiudad());
+            printDetail("Entrenador", creado.getEntrenador());
+        } else {
+            printError("No se pudo crear el equipo.");
+        }
     }
 
     private void editarEquipo() {
+        printSubHeader("EDITAR EQUIPO");
         String id = leerTexto("ID del equipo a editar: ");
         String nombre = leerTexto("Nuevo nombre: ");
+        String ciudad = leerTexto("Nueva ciudad (enter para omitir): ");
+        String entrenador = leerTexto("Nuevo entrenador (enter para omitir): ");
         Equipo equipo = new Equipo();
-        equipo.setNombre(nombre);
+        if (!nombre.isEmpty()) equipo.setNombre(nombre);
+        if (!ciudad.isEmpty()) equipo.setCiudad(ciudad);
+        if (!entrenador.isEmpty()) equipo.setEntrenador(entrenador);
         Equipo editado = controller.editarEquipo(id, equipo);
-        System.out.println(editado != null ? "Equipo editado: " + editado : "No se pudo editar el equipo.");
+        if (editado != null) {
+            printSuccess("Equipo editado exitosamente");
+            printDetail("ID", editado.getId());
+            printDetail("Nombre", editado.getNombre());
+        } else {
+            printError("No se pudo editar el equipo.");
+        }
     }
 
     private void eliminarEquipo() {
+        printSubHeader("ELIMINAR EQUIPO");
         String id = leerTexto("ID del equipo a eliminar: ");
         boolean ok = controller.eliminarEquipo(id);
-        System.out.println(ok ? "Equipo eliminado." : "No se pudo eliminar el equipo.");
+        if (ok) {
+            printSuccess("Equipo eliminado correctamente.");
+        } else {
+            printError("No se pudo eliminar el equipo.");
+        }
     }
 
     private void listarEquipos() {
+        printSubHeader("LISTADO DE EQUIPOS");
         List<Equipo> lista = controller.listarEquipos();
         if (lista == null || lista.isEmpty()) {
-            System.out.println("No hay equipos registrados.");
+            printWarning("No hay equipos registrados.");
             return;
         }
-        lista.forEach(System.out::println);
+        String[] headers = {"ID", "Nombre", "Ciudad", "Fundación", "Entrenador", "PTS", "GF", "GC"};
+        String[][] rows = lista.stream().map(e -> new String[]{
+                e.getId() != null ? e.getId() : "-",
+                e.getNombre() != null ? e.getNombre() : "-",
+                e.getCiudad() != null ? e.getCiudad() : "-",
+                String.valueOf(e.getAnioFundacion()),
+                e.getEntrenador() != null ? e.getEntrenador() : "-",
+                String.valueOf(e.getPuntos()),
+                String.valueOf(e.getGolesFavor()),
+                String.valueOf(e.getGolesContra())
+        }).toArray(String[][]::new);
+        printTable(headers, rows);
+        printInfo("Total: " + lista.size() + " equipo(s)");
     }
 
-    // --- Jugadores ---
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Jugadores
+    // ═══════════════════════════════════════════════════
+
     private void registrarJugador() {
+        printSubHeader("REGISTRAR JUGADOR");
         String nombre = leerTexto("Nombre del jugador: ");
         int edad = leerEntero("Edad: ");
         String posicion = leerTexto("Posición: ");
@@ -135,136 +293,310 @@ public class ConsoleView {
         j.setPosicion(posicion);
         j.setDorsal(dorsal);
         Jugador res = controller.registrarJugador(j);
-        System.out.println(res != null ? "Jugador registrado: " + res : "No se pudo registrar jugador.");
+        if (res != null) {
+            printSuccess("Jugador registrado exitosamente");
+            printDetail("ID", res.getId());
+            printDetail("Nombre", res.getNombre());
+            printDetail("Posición", res.getPosicion());
+            printDetail("Dorsal", String.valueOf(res.getDorsal()));
+        } else {
+            printError("No se pudo registrar el jugador.");
+        }
     }
 
     private void asociarJugador() {
-        String jugadorId = leerTexto("ID jugador: ");
-        String equipoId = leerTexto("ID equipo: ");
+        printSubHeader("ASOCIAR JUGADOR A EQUIPO");
+        String jugadorId = leerTexto("ID del jugador: ");
+        String equipoId = leerTexto("ID del equipo: ");
         boolean ok = controller.asociarJugadorAEquipo(jugadorId, equipoId);
-        System.out.println(ok ? "Jugador asociado." : "No se pudo asociar jugador.");
+        if (ok) {
+            printSuccess("Jugador asociado al equipo correctamente.");
+        } else {
+            printError("No se pudo asociar el jugador.");
+        }
     }
 
     private void listarJugadoresPorEquipo() {
-        String equipoId = leerTexto("ID equipo: ");
+        printSubHeader("JUGADORES POR EQUIPO");
+        String equipoId = leerTexto("ID del equipo: ");
         List<Jugador> lista = controller.listarJugadoresPorEquipo(equipoId);
         if (lista == null || lista.isEmpty()) {
-            System.out.println("No hay jugadores para este equipo.");
+            printWarning("No hay jugadores para este equipo.");
             return;
         }
-        lista.forEach(System.out::println);
+        String[] headers = {"ID", "Nombre", "Edad", "Posición", "Dorsal", "Goles"};
+        String[][] rows = lista.stream().map(j -> new String[]{
+                j.getId() != null ? j.getId() : "-",
+                j.getNombre() != null ? j.getNombre() : "-",
+                String.valueOf(j.getEdad()),
+                j.getPosicion() != null ? j.getPosicion() : "-",
+                String.valueOf(j.getDorsal()),
+                String.valueOf(j.getGoles())
+        }).toArray(String[][]::new);
+        printTable(headers, rows);
+        printInfo("Total: " + lista.size() + " jugador(es)");
     }
 
-    // --- Torneos ---
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Torneos
+    // ═══════════════════════════════════════════════════
+
     private void crearTorneo() {
+        printSubHeader("CREAR TORNEO");
         String nombre = leerTexto("Nombre del torneo: ");
         String sede = leerTexto("Sede: ");
         Torneo t = new Torneo();
         t.setNombre(nombre);
         t.setSede(sede);
         Torneo res = controller.crearTorneo(t);
-        System.out.println(res != null ? "Torneo creado: " + res : "No se pudo crear torneo.");
+        if (res != null) {
+            printSuccess("Torneo creado exitosamente");
+            printDetail("ID", res.getId());
+            printDetail("Nombre", res.getNombre());
+            printDetail("Sede", res.getSede());
+            printDetail("Estado", String.valueOf(res.getEstado()));
+        } else {
+            printError("No se pudo crear el torneo.");
+        }
     }
 
     private void agregarEquipoATorneo() {
-        String torneoId = leerTexto("ID torneo: ");
-        String equipoId = leerTexto("ID equipo: ");
+        printSubHeader("AGREGAR EQUIPO A TORNEO");
+        String torneoId = leerTexto("ID del torneo: ");
+        String equipoId = leerTexto("ID del equipo: ");
         boolean ok = controller.agregarEquipoATorneo(torneoId, equipoId);
-        System.out.println(ok ? "Equipo agregado al torneo." : "No se pudo agregar equipo.");
+        if (ok) {
+            printSuccess("Equipo agregado al torneo correctamente.");
+        } else {
+            printError("No se pudo agregar el equipo al torneo.");
+        }
     }
 
     private void activarTorneo() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("ACTIVAR TORNEO");
+        String torneoId = leerTexto("ID del torneo: ");
         boolean ok = controller.activarTorneo(torneoId);
-        System.out.println(ok ? "Torneo activado." : "No se pudo activar torneo.");
+        if (ok) {
+            printSuccess("Torneo activado correctamente.");
+        } else {
+            printError("No se pudo activar el torneo.");
+        }
     }
 
     private void finalizarTorneo() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("FINALIZAR TORNEO");
+        String torneoId = leerTexto("ID del torneo: ");
         boolean ok = controller.finalizarTorneo(torneoId);
-        System.out.println(ok ? "Torneo finalizado." : "No se pudo finalizar torneo.");
+        if (ok) {
+            printSuccess("Torneo finalizado correctamente.");
+        } else {
+            printError("No se pudo finalizar el torneo.");
+        }
     }
 
     private void listarTorneos() {
+        printSubHeader("LISTADO DE TORNEOS");
         List<Torneo> lista = controller.listarTorneos();
         if (lista == null || lista.isEmpty()) {
-            System.out.println("No hay torneos registrados.");
+            printWarning("No hay torneos registrados.");
             return;
         }
-        lista.forEach(System.out::println);
+        String[] headers = {"ID", "Nombre", "Sede", "Estado", "Equipos"};
+        String[][] rows = lista.stream().map(t -> new String[]{
+                t.getId() != null ? t.getId() : "-",
+                t.getNombre() != null ? t.getNombre() : "-",
+                t.getSede() != null ? t.getSede() : "-",
+                t.getEstado() != null ? t.getEstado().name() : "-",
+                t.getEquipoIds() != null ? String.valueOf(t.getEquipoIds().size()) : "0"
+        }).toArray(String[][]::new);
+        printTable(headers, rows);
+        printInfo("Total: " + lista.size() + " torneo(s)");
     }
 
-    // --- Partidos ---
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Partidos
+    // ═══════════════════════════════════════════════════
+
     private void generarPartidos() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("GENERAR FIXTURE");
+        String torneoId = leerTexto("ID del torneo: ");
         List<Partido> lista = controller.generarPartidos(torneoId);
-        System.out.println((lista != null && !lista.isEmpty()) ? "Partidos generados:" : "No se generaron partidos.");
-        if (lista != null) lista.forEach(System.out::println);
+        if (lista != null && !lista.isEmpty()) {
+            printSuccess("Se generaron " + lista.size() + " partido(s)");
+            mostrarTablaPartidos(lista);
+        } else {
+            printError("No se generaron partidos. Verifique que el torneo tenga al menos 2 equipos.");
+        }
     }
 
     private void registrarResultado() {
-        String partidoId = leerTexto("ID partido: ");
-        int gLocal = leerEntero("Goles local: ");
-        int gVisit = leerEntero("Goles visitante: ");
+        printSubHeader("REGISTRAR RESULTADO");
+        String partidoId = leerTexto("ID del partido: ");
+        int gLocal = leerEntero("Goles equipo local: ");
+        int gVisit = leerEntero("Goles equipo visitante: ");
         boolean ok = controller.registrarResultado(partidoId, gLocal, gVisit);
-        System.out.println(ok ? "Resultado registrado." : "No se pudo registrar resultado.");
+        if (ok) {
+            printSuccess("Resultado registrado correctamente.");
+        } else {
+            printError("No se pudo registrar el resultado.");
+        }
     }
 
     private void listarPartidosPorTorneo() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("PARTIDOS POR TORNEO");
+        String torneoId = leerTexto("ID del torneo: ");
         List<Partido> lista = controller.listarPartidosPorTorneo(torneoId);
         if (lista == null || lista.isEmpty()) {
-            System.out.println("No hay partidos para este torneo.");
+            printWarning("No hay partidos para este torneo.");
             return;
         }
-        lista.forEach(System.out::println);
+        mostrarTablaPartidos(lista);
     }
 
-    // --- Estadísticas ---
+    private void mostrarTablaPartidos(List<Partido> lista) {
+        String[] headers = {"ID", "Local", "Goles L", "Goles V", "Visitante", "Estado", "Fecha"};
+        String[][] rows = lista.stream().map(p -> new String[]{
+                p.getId() != null ? p.getId() : "-",
+                p.getEquipoLocalId() != null ? p.getEquipoLocalId() : "-",
+                String.valueOf(p.getGolesLocal()),
+                String.valueOf(p.getGolesVisitante()),
+                p.getEquipoVisitanteId() != null ? p.getEquipoVisitanteId() : "-",
+                p.getEstado() != null ? p.getEstado().name() : "-",
+                p.getFecha() != null ? p.getFecha() : "-"
+        }).toArray(String[][]::new);
+        printTable(headers, rows);
+        printInfo("Total: " + lista.size() + " partido(s)");
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Estadísticas
+    // ═══════════════════════════════════════════════════
+
     private void generarEstadisticas() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("GENERAR ESTADÍSTICAS");
+        String torneoId = leerTexto("ID del torneo: ");
         Estadistica e = controller.generarEstadisticas(torneoId);
-        System.out.println(e != null ? "Estadísticas generadas: " + e : "No se pudo generar estadísticas.");
+        if (e != null) {
+            printSuccess("Estadísticas generadas para el torneo " + torneoId);
+            mostrarEstadistica(e);
+        } else {
+            printError("No se pudieron generar estadísticas.");
+        }
     }
 
     private void visualizarEstadisticas() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("VISUALIZAR ESTADÍSTICAS");
+        String torneoId = leerTexto("ID del torneo: ");
         Estadistica e = controller.visualizarEstadisticas(torneoId);
-        System.out.println(e != null ? e : "No hay estadísticas para este torneo.");
+        if (e != null) {
+            mostrarEstadistica(e);
+        } else {
+            printWarning("No hay estadísticas generadas para este torneo.");
+        }
     }
 
-    // --- Reportes ---
+    private void mostrarEstadistica(Estadistica e) {
+        printDetail("Torneo", e.getTorneoId());
+        printDetail("Fecha", e.getFechaGeneracion());
+
+        if (e.getTabla() != null && !e.getTabla().isEmpty()) {
+            System.out.println();
+            printInfo("TABLA DE POSICIONES");
+            String[] hPos = {"#", "Equipo", "PTS", "GF", "GC", "DIF", "PJ"};
+            String[][] rPos = new String[e.getTabla().size()][];
+            for (int i = 0; i < e.getTabla().size(); i++) {
+                TablaPosicionItem t = e.getTabla().get(i);
+                rPos[i] = new String[]{
+                        String.valueOf(i + 1),
+                        t.getEquipoId() != null ? t.getEquipoId() : "-",
+                        String.valueOf(t.getPuntos()),
+                        String.valueOf(t.getGolesFavor()),
+                        String.valueOf(t.getGolesContra()),
+                        String.valueOf(t.getGolesFavor() - t.getGolesContra()),
+                        String.valueOf(t.getPartidosJugados())
+                };
+            }
+            printTable(hPos, rPos);
+        }
+
+        if (e.getGoleadores() != null && !e.getGoleadores().isEmpty()) {
+            System.out.println();
+            printInfo("TABLA DE GOLEADORES");
+            String[] hGol = {"#", "Jugador", "Goles"};
+            String[][] rGol = new String[e.getGoleadores().size()][];
+            for (int i = 0; i < e.getGoleadores().size(); i++) {
+                GoleadorItem g = e.getGoleadores().get(i);
+                rGol[i] = new String[]{
+                        String.valueOf(i + 1),
+                        g.getJugadorId() != null ? g.getJugadorId() : "-",
+                        String.valueOf(g.getGoles())
+                };
+            }
+            printTable(hGol, rGol);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  Operaciones de Reportes
+    // ═══════════════════════════════════════════════════
+
     private void equipoMasGoles() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("EQUIPO CON MÁS GOLES");
+        String torneoId = leerTexto("ID del torneo: ");
         Equipo e = controller.equipoConMasGoles(torneoId);
-        System.out.println(e != null ? "Equipo con más goles: " + e : "No hay datos.");
+        if (e != null) {
+            printSuccess("Equipo con más goles:");
+            printDetail("ID", e.getId());
+            printDetail("Nombre", e.getNombre());
+            printDetail("Ciudad", e.getCiudad() != null ? e.getCiudad() : "-");
+            printDetail("Goles a favor", String.valueOf(e.getGolesFavor()));
+        } else {
+            printWarning("No hay datos disponibles.");
+        }
     }
 
     private void jugadorMasGoles() {
-        String torneoId = leerTexto("ID torneo: ");
+        printSubHeader("JUGADOR CON MÁS GOLES");
+        String torneoId = leerTexto("ID del torneo: ");
         Jugador j = controller.jugadorConMasGoles(torneoId);
-        System.out.println(j != null ? "Jugador con más goles: " + j : "No hay datos.");
+        if (j != null) {
+            printSuccess("Jugador con más goles:");
+            printDetail("ID", j.getId());
+            printDetail("Nombre", j.getNombre());
+            printDetail("Goles", String.valueOf(j.getGoles()));
+            printDetail("Equipo", j.getEquipoId() != null ? j.getEquipoId() : "Sin equipo");
+        } else {
+            printWarning("No hay datos disponibles.");
+        }
     }
 
     private void historialTorneos() {
+        printSubHeader("HISTORIAL DE TORNEOS");
         List<String> h = controller.historialTorneos();
         if (h == null || h.isEmpty()) {
-            System.out.println("No hay historial.");
+            printWarning("No hay historial de torneos.");
             return;
         }
-        h.forEach(System.out::println);
+        for (int i = 0; i < h.size(); i++) {
+            System.out.println(CYAN + "  " + (i + 1) + ". " + RESET + h.get(i));
+        }
+        printInfo("Total: " + h.size() + " torneo(s) en historial");
     }
 
-    // --- Helpers ---
-    private String leerTexto(String prompt) {
-        System.out.print(prompt);
+    // ═══════════════════════════════════════════════════
+    //  Helpers de entrada
+    // ═══════════════════════════════════════════════════
+
+    private String leerTexto(String label) {
+        System.out.print(MAGENTA + " ▸ " + RESET + label);
         return scanner.nextLine();
     }
 
-    private int leerEntero(String prompt) {
-        System.out.print(prompt);
+    private int leerEntero(String label) {
+        System.out.print(MAGENTA + " ▸ " + RESET + label);
         while (!scanner.hasNextInt()) {
-            System.out.print("Valor inválido. Intente de nuevo: ");
+            printWarning("Valor inválido. Ingrese un número entero.");
+            System.out.print(MAGENTA + " ▸ " + RESET + label);
             scanner.next();
         }
         int val = scanner.nextInt();

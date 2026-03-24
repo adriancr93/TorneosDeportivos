@@ -9,6 +9,10 @@
     </Console>
   </Appenders>
   <Loggers>
+    <!-- MongoDB driver logs: only go to the JSON file (for Elasticsearch), not to console -->
+    <Logger name="org.mongodb.driver" level="info" additivity="false">
+      <AppenderRef ref="JsonFile"/>
+    </Logger>
     <Root level="info">
       <AppenderRef ref="JsonFile"/>
       <AppenderRef ref="Console"/>
