@@ -1,7 +1,6 @@
 package org.example.controller;
 
 import org.example.config.DataSeeder;
-import org.example.interfaces.*;
 import org.example.model.*;
 import org.example.repository.*;
 import org.example.service.impl.*;
@@ -50,7 +49,7 @@ public class TorneoController {
 
         // Inicializar API REST (puerto 8080) en hilo de fondo
         try {
-            ApiServer apiServer = new ApiServer(equipoService, jugadorService, torneoService, partidoService, estadisticaService);
+            ApiServer apiServer = new ApiServer(equipoService, jugadorService, torneoService, partidoService, estadisticaService, true);
             Thread apiThread = new Thread(apiServer::start, "api-server");
             apiThread.setDaemon(true);
             apiThread.start();
