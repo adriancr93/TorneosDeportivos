@@ -10,13 +10,9 @@ import java.util.List;
 
 class ReporteServiceTest {
     private ReporteService reporteService;
-    private List<Equipo> equipos;
-    private List<Jugador> jugadores;
 
     @BeforeEach
     void setUp() {
-        equipos = new ArrayList<>();
-        jugadores = new ArrayList<>();
         reporteService = new ReporteService() {
             @Override
             public Equipo equipoConMasGoles(String torneoId) {

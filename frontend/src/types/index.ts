@@ -19,10 +19,10 @@ export interface AuthRequest {
   password: string;
 }
 
-// Equipo types
 export interface Jugador {
   jugadorId: string;
   nombre: string;
+  edad?: number;
   numero: number;
   posicion: string;
   equipoId?: string;
@@ -33,32 +33,38 @@ export interface Equipo {
   nombre: string;
   ciudad: string;
   entrenador: string;
+  anioFundacion?: number;
   jugadores?: Jugador[];
 }
 
-// Torneo types
 export interface Torneo {
   torneoId: string;
   nombre: string;
+  sede?: string;
   fechaInicio: string;
   fechaFin: string;
   equipos?: string[];
+  cantidadEquipos?: number;
   estado?: string;
 }
 
-// Partido types
 export interface Partido {
   partidoId: string;
   torneoId: string;
   equipoLocal: string;
   equipoVisitante: string;
+  equipoLocalId?: string;
+  equipoVisitanteId?: string;
   golesLocal: number;
   golesVisitante: number;
   fecha: string;
+  estado?: string;
+  ronda?: string;
   estadio?: string;
+  goleadores?: Record<string, number>;
+  asistencias?: Record<string, number>;
 }
 
-// Estadística types
 export interface Estadistica {
   estadisticaId?: string;
   equipoId: string;
@@ -72,13 +78,21 @@ export interface Estadistica {
 }
 
 export interface GoleadorItem {
-  equipoId: string;
+  jugadorId: string;
   nombre: string;
-  numeroGoles: number;
+  equipo: string;
+  goles: number;
   posicion?: string;
 }
 
-// Standings/Tabla
+export interface AsistenciaItem {
+  jugadorId: string;
+  nombre: string;
+  equipo: string;
+  asistencias: number;
+  posicion?: string;
+}
+
 export interface Standings {
   equipoId: string;
   nombre: string;
@@ -90,4 +104,16 @@ export interface Standings {
   golesAFavor: number;
   golesEnContra: number;
   diferencia: number;
+}
+
+export interface ApiActionResponse<T> {
+  success: boolean;
+  message: string;
+  torneo?: T;
+  equipo?: T;
+  jugador?: T;
+  partidos?: Partido[];
+  standings?: Standings[];
+  goleadores?: GoleadorItem[];
+  asistencias?: AsistenciaItem[];
 }

@@ -1,142 +1,117 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import { equiposApi } from '../api/client';
 import type { Equipo } from '../types';
 import StatsCard from '../components/StatsCard';
 
+const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)]';
+const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] placeholder:text-[#91a1bc] focus:border-[#5d87ff] focus:outline-none';
+const buttonClass = 'rounded-xl bg-[#5d87ff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_9px_18px_rgba(93,135,255,0.25)] transition hover:bg-[#4b74e8]';
+
 const EquiposPage: React.FC = () => {
   const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [form, setForm] = useState({ nombre: '', ciudad: '', entrenador: '', anioFundacion: '' });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const fetchEquipos = async () => {
+    try {
+      setLoading(true);
+      const data = await equiposApi.getAll();
+      setEquipos(data);
+    } catch (fetchError) {
+      console.error(fetchError);
+      toast.error('No se pudieron cargar los equipos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const data = await equiposApi.getAll();
-        setEquipos(data);
-        setError('');
-      } catch (err) {
-        console.error('Error fetching equipos:', err);
-        setError('Error al cargar los equipos desde el servidor');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    void fetchEquipos();
   }, []);
 
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    try {
+      setSaving(true);
+      const response = await equiposApi.create({
+        nombre: form.nombre,
+        ciudad: form.ciudad,
+        entrenador: form.entrenador,
+        anioFundacion: Number(form.anioFundacion) || 0,
+      });
+      if (!response.success) {
+        toast.error(response.message || 'No se pudo crear el equipo');
+        return;
+      }
+      toast.success('Equipo creado correctamente');
+      setForm({ nombre: '', ciudad: '', entrenador: '', anioFundacion: '' });
+      await fetchEquipos();
+    } catch (createError) {
+      console.error(createError);
+      toast.error('Error al crear el equipo');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full border-4 border-gray-200 border-t-green-600 w-12 h-12 mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando equipos...</p>
-        </div>
-      </div>
-    );
+    return <div className="py-20 text-center text-slate-400">Cargando equipos...</div>;
   }
 
-  const totalJugadores = equipos.reduce((acc, eq) => acc + (eq.jugadores?.length || 0), 0);
+  const totalJugadores = equipos.reduce((accumulator, equipo) => accumulator + (equipo.jugadores?.length || 0), 0);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Equipos</h1>
-        <p className="text-gray-600">Administra todos los equipos participantes</p>
+    <div className="space-y-6 px-1 text-[#2a3547]">
+      <section className={panelClass}>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5d87ff]">Gestion de equipos</p>
+        <h1 className="mt-2 text-3xl font-bold text-[#2a3547]">Crear nuevos equipos</h1>
+        <p className="mt-2 text-sm text-[#5a6a85]">Registra clubes y prepara la base de participantes para los torneos.</p>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <StatsCard label="Total equipos" value={equipos.length} emoji="🛡️" backgroundColor="bg-sky-500/15" />
+        <StatsCard label="Jugadores registrados" value={totalJugadores} emoji="👥" backgroundColor="bg-emerald-500/15" />
+        <StatsCard label="Promedio por equipo" value={equipos.length ? (totalJugadores / equipos.length).toFixed(1) : '0'} emoji="📊" backgroundColor="bg-violet-500/15" />
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 font-medium">
-          {error}
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.35fr]">
+        <section className={panelClass}>
+          <h2 className="text-2xl font-bold text-[#2a3547]">Crear Equipo</h2>
+          <p className="mt-1 text-sm text-slate-400">Registra un nuevo equipo antes de asignarlo a un torneo.</p>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard
-          label="Total Equipos"
-          value={equipos.length}
-          emoji="👥"
-          backgroundColor="bg-blue-100"
-        />
-        <StatsCard
-          label="Total Jugadores"
-          value={totalJugadores}
-          emoji="⚽"
-          backgroundColor="bg-green-100"
-        />
-        <StatsCard
-          label="Prom. Jugadores/Equipo"
-          value={equipos.length > 0 ? (totalJugadores / equipos.length).toFixed(1) : '0'}
-          emoji="📊"
-          backgroundColor="bg-purple-100"
-        />
-      </div>
+          <form className="mt-5 space-y-4" onSubmit={handleCreate}>
+            <input className={inputClass} placeholder="Nombre del equipo" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} required />
+            <input className={inputClass} placeholder="Ciudad" value={form.ciudad} onChange={(event) => setForm((current) => ({ ...current, ciudad: event.target.value }))} required />
+            <input className={inputClass} placeholder="Entrenador" value={form.entrenador} onChange={(event) => setForm((current) => ({ ...current, entrenador: event.target.value }))} required />
+            <input className={inputClass} type="number" min="1900" placeholder="Año de fundación" value={form.anioFundacion} onChange={(event) => setForm((current) => ({ ...current, anioFundacion: event.target.value }))} />
+            <button className={`${buttonClass} w-full`} disabled={saving} type="submit">{saving ? 'Guardando...' : 'Crear Equipo'}</button>
+          </form>
+        </section>
 
-      {/* Equipos List */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-lg font-bold text-gray-900">Listado de Equipos</h2>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {equipos.length === 0 ? (
-            <p className="py-10 text-center text-gray-500">No hay equipos registrados</p>
-          ) : (
-            equipos.map((equipo) => (
-              <div key={equipo.equipoId} className="p-6 hover:bg-gray-50 transition-colors">
-                <button
-                  onClick={() => setExpandedId(expandedId === equipo.equipoId ? null : equipo.equipoId)}
-                  className="w-full flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4 text-left">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 font-bold text-green-700">
-                      {equipo.nombre.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900">{equipo.nombre}</h3>
-                      <p className="text-sm text-gray-600">📍 {equipo.ciudad} • DT: {equipo.entrenador}</p>
-                    </div>
+        <section className={panelClass}>
+          <h2 className="text-2xl font-bold text-[#2a3547]">Equipos registrados</h2>
+          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {equipos.map((equipo) => (
+              <article key={equipo.equipoId} className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/15 font-bold text-cyan-200">{equipo.nombre.charAt(0).toUpperCase()}</div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#2a3547]">{equipo.nombre}</h3>
+                    <p className="text-sm text-slate-400">{equipo.ciudad}</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                      {equipo.jugadores?.length || 0} 👥
-                    </span>
-                    <div className="text-gray-400 text-lg">
-                      {expandedId === equipo.equipoId ? '▼' : '▶'}
-                    </div>
-                  </div>
-                </button>
-
-                {/* Expanded Content */}
-                {expandedId === equipo.equipoId && (
-                  <div className="mt-4 pt-4 border-t border-gray-100 animate-in">
-                    <h4 className="mb-4 font-semibold text-gray-900">👥 Jugadores del Equipo</h4>
-                    {equipo.jugadores && equipo.jugadores.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {equipo.jugadores.map((jugador, idx) => (
-                          <div key={idx} className="rounded-lg border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-3 hover:shadow-md transition-shadow">
-                            <p className="font-semibold text-gray-900">{idx + 1}. {jugador.nombre}</p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              <span className="font-medium">Posición:</span> {jugador.posicion}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-0.5">
-                              <span className="font-medium">Número:</span> #{jugador.numero}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500">Sin jugadores registrados</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+                </div>
+                <div className="mt-4 space-y-2 text-sm text-slate-300">
+                  <p><span className="text-slate-500">Entrenador:</span> {equipo.entrenador}</p>
+                  <p><span className="text-slate-500">Fundación:</span> {equipo.anioFundacion || 'No indicada'}</p>
+                  <p><span className="text-slate-500">Jugadores:</span> {equipo.jugadores?.length || 0}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

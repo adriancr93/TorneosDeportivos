@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './lib/authContext';
 import ProtectedRoute from './lib/ProtectedRoute';
 import LoginPage from './views/LoginPage';
 import DashboardLayout from './components/DashboardLayout';
+import JugadoresPage from './views/JugadoresPage';
 import TorneosPage from './views/TorneosPage';
 import EquiposPage from './views/EquiposPage';
 import PartidosPage from './views/PartidosPage';
@@ -12,6 +15,7 @@ import './App.css';
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" aria-label="Notifications" />
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
@@ -27,6 +31,7 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/dashboard/torneos" replace />} />
+            <Route path="jugadores" element={<JugadoresPage />} />
             <Route path="torneos" element={<TorneosPage />} />
             <Route path="equipos" element={<EquiposPage />} />
             <Route path="partidos" element={<PartidosPage />} />

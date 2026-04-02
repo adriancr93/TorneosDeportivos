@@ -7,13 +7,13 @@ interface AuthTabsProps {
 
 const AuthTabs: React.FC<AuthTabsProps> = ({ isLogin, onTabChange }) => {
   return (
-    <div className="mb-8 flex gap-2 bg-gray-100 rounded-lg p-1.5">
+    <div className="mb-8 flex gap-2 rounded-lg bg-[#f3f7ff] p-1.5">
       <button
         onClick={() => onTabChange(true)}
         className={`flex-1 py-2.5 px-4 rounded-md font-semibold text-sm transition-all ${
           isLogin
-            ? 'bg-white text-green-600 shadow-md'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-[#5d87ff] shadow-[0_2px_10px_rgba(93,135,255,0.2)]'
+            : 'text-[#5a6a85] hover:text-[#2a3547]'
         }`}
       >
         Iniciar Sesión
@@ -22,8 +22,8 @@ const AuthTabs: React.FC<AuthTabsProps> = ({ isLogin, onTabChange }) => {
         onClick={() => onTabChange(false)}
         className={`flex-1 py-2.5 px-4 rounded-md font-semibold text-sm transition-all ${
           !isLogin
-            ? 'bg-white text-green-600 shadow-md'
-            : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-[#5d87ff] shadow-[0_2px_10px_rgba(93,135,255,0.2)]'
+            : 'text-[#5a6a85] hover:text-[#2a3547]'
         }`}
       >
         Crear Cuenta

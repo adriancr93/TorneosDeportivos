@@ -5,7 +5,6 @@ Proyecto de gestion de torneos deportivos con:
 - Backend Java (Maven).
 - Persistencia en MongoDB.
 - Menu de consola.
-- Vistas JavaFX (login, panel de creacion de torneos, dashboard).
 - API REST local con Swagger/OpenAPI.
 - Frontend separado en React + Vite.
 - Integracion de logs con Elasticsearch + Logstash + Kibana.
@@ -56,30 +55,17 @@ mvn clean compile
 
 ### 4.1 Ejecutar aplicacion en modo menu (consola, por defecto)
 
-Desde IDE (ejecutando Main) o con Maven JavaFX plugin:
+Desde IDE (ejecutando Main) o con Maven:
 
 ```bash
-mvn javafx:run
+mvn exec:java -Dexec.mainClass="org.example.Main"
 ```
 
 Comportamiento:
 
 - Inicia el menu de consola.
 - Inicia API REST en puerto 8080 en segundo plano.
-- Si abres http://localhost:8080 en navegador, intenta abrir el dashboard JavaFX una vez.
-
-### 4.2 Ejecutar en modo GUI (login JavaFX)
-
-```bash
-mvn javafx:run -Djavafx.args="--gui"
-```
-
-Comportamiento:
-
-- Abre la vista de login JavaFX.
-- Permite crear usuarios y autenticarse.
-- Permite crear torneo y generar partidos.
-- Inicia API REST en puerto 8080.
+- La interfaz grafica principal vive en el frontend React en http://localhost:5173.
 
 ## 5. Opciones del menu principal (modo consola)
 
@@ -96,7 +82,6 @@ Menu principal:
 5. Estadisticas
 6. Reportes
 7. Cargar datos de prueba
-8. Abrir dashboard grafico
 0. Salir
 
 ## 6. API REST y Swagger
@@ -197,9 +182,7 @@ Este script:
 1. Configura URI de MongoDB en [src/main/java/org/example/config/MongoDBUtil.java](src/main/java/org/example/config/MongoDBUtil.java).
 2. Compila backend con Maven.
 3. Levanta Elastic Stack (opcional, para observabilidad).
-4. Ejecuta backend:
-	 - Modo menu (default), o
-	 - Modo GUI con --gui.
+4. Ejecuta backend en modo menu (consola).
 5. Verifica API y Swagger en localhost:8080.
 6. En otra terminal, levanta frontend desde [frontend](frontend).
 7. Consume endpoints desde React contra http://localhost:8080.
@@ -208,8 +191,6 @@ Este script:
 
 - Puerto 8080 ocupado:
 	- Deten otro proceso en 8080 o cambia configuracion del servidor HTTP.
-- JavaFX no abre:
-	- Verifica JDK 25 y ejecucion desde entorno con soporte grafico.
 - MongoDB no conecta:
 	- Valida URI, usuario, password, whitelist IP y conectividad.
 - Kibana no carga:
@@ -221,8 +202,7 @@ Backend:
 
 ```bash
 mvn clean compile
-mvn javafx:run
-mvn javafx:run -Djavafx.args="--gui"
+mvn exec:java -Dexec.mainClass="org.example.Main"
 ```
 
 Frontend:

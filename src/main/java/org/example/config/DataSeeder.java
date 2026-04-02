@@ -5,7 +5,6 @@ import org.example.service.impl.*;
 import org.example.view.ConsoleUI;
 
 import java.util.List;
-import java.util.Random;
 
 public class DataSeeder {
     private final MongoEquipoService equipoService;
@@ -87,17 +86,13 @@ public class DataSeeder {
         torneoService.activarTorneo(torneoCreado.getId());
         ConsoleUI.printSuccess("Torneo '" + torneoCreado.getNombre() + "' creado con 6 equipos");
 
-        // ─── 4. Generar partidos round-robin ───────────
+        // ─── 4. Generar fixture eliminatorio ────────────
         List<Partido> partidos = partidoService.generarPartidos(torneoCreado.getId());
-        ConsoleUI.printSuccess(partidos.size() + " partidos generados (round-robin)");
+        ConsoleUI.printSuccess(partidos.size() + " partidos generados (eliminatoria)");
 
-        // ─── 5. Simular resultados aleatorios ──────────
-        Random rnd = new Random(42); // seed para reproducibilidad
-        for (Partido p : partidos) {
-            int golesLocal = rnd.nextInt(5);
-            int golesVisitante = rnd.nextInt(4);
-            partidoService.registrarResultado(p.getId(), golesLocal, golesVisitante);
-        }
+        // ─── 5. Simular bracket completo ───────────────
+        partidoService.simularEliminatoria(torneoCreado.getId(), partidos);
+        List<Partido> todos = partidoService.listarPartidosPorTorneo(torneoCreado.getId());
         ConsoleUI.printSuccess("Resultados simulados para todos los partidos");
 
         // ─── 6. Generar estadísticas y tabla ───────────

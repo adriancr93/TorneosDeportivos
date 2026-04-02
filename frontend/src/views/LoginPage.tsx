@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import { authApi } from '../api/client';
 import { useAuth } from '../lib/authContext';
 import AuthLayout from '../components/AuthLayout';
@@ -12,7 +14,6 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
@@ -25,31 +26,30 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
       // Validations
       if (!email || !password) {
-        setError('Por favor completa todos los campos');
+        toast.error('Por favor completa todos los campos');
         setLoading(false);
         return;
       }
 
       if (!validateEmail(email)) {
-        setError('Por favor ingresa un correo válido');
+        toast.error('Por favor ingresa un correo válido');
         setLoading(false);
         return;
       }
 
       if (password.length < 6) {
-        setError('La contraseña debe tener al menos 6 caracteres');
+        toast.error('La contraseña debe tener al menos 6 caracteres');
         setLoading(false);
         return;
       }
 
       if (!isLogin && password !== confirmPassword) {
-        setError('Las contraseñas no coinciden');
+        toast.error('Las contraseñas no coinciden');
         setLoading(false);
         return;
       }
@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
           login({ username: response.username || email, usuarioId: response.usuarioId });
           navigate('/dashboard');
         } else {
-          setError(response.message || 'Correo o contraseña incorrectos');
+          toast.error(response.message || 'Correo o contraseña incorrectos');
         }
       } else {
         // Register with email
@@ -70,12 +70,24 @@ const LoginPage: React.FC = () => {
           login({ username: response.username || email, usuarioId: response.usuarioId });
           navigate('/dashboard');
         } else {
-          setError(response.message || 'Error al crear la cuenta');
+          toast.error(response.message || 'Error al crear la cuenta');
         }
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError('Error de conexión. Asegúrate que el servidor esté corriendo en puerto 8080');
+      if (axios.isAxiosError(err)) {
+        const backendMessage = (err.response?.data as { message?: string } | undefined)?.message;
+
+        if (backendMessage) {
+          toast.error(backendMessage);
+        } else if (err.code === 'ERR_NETWORK') {
+          toast.error('Error de conexión. Asegúrate que el servidor esté corriendo en puerto 8080');
+        } else {
+          toast.error('No se pudo completar la solicitud. Intenta nuevamente.');
+        }
+      } else {
+        toast.error('Ocurrió un error inesperado. Intenta nuevamente.');
+      }
     } finally {
       setLoading(false);
     }
@@ -84,18 +96,20 @@ const LoginPage: React.FC = () => {
   return (
     <AuthLayout>
       <div>
-        {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {isLogin ? '¡Bienvenido!' : 'Crear Cuenta'}
+        <div className="mb-6 text-center">
+          <h2 className="text-3xl font-extrabold text-[#2a3547]">
+            {isLogin ? 'Iniciar Sesion' : 'Crear Cuenta'}
           </h2>
-          <p className="text-gray-600">
-            {isLogin ? 'Inicia sesión para acceder al panel' : 'Regístrate para comenzar a usar Torneos'}
+          <p className="mt-1 text-sm text-[#5a6a85]">
+            {isLogin ? 'Accede al panel de torneos deportivos' : 'Registra tu usuario para administrar torneos'}
           </p>
         </div>
 
-        {/* Tabs */}
-        <AuthTabs isLogin={isLogin} onTabChange={setIsLogin} />
+        <AuthTabs isLogin={isLogin} onTabChange={(value) => { setIsLogin(value); }} />
+
+        <div className="mb-5 text-center text-xs font-medium uppercase tracking-[0.18em] text-[#7a8ca8]">
+          {isLogin ? 'or sign in with' : 'or sign up with'}
+        </div>
 
         {/* Form */}
         {isLogin ? (
@@ -103,10 +117,10 @@ const LoginPage: React.FC = () => {
             email={email}
             password={password}
             loading={loading}
-            error={error}
             onEmailChange={setEmail}
             onPasswordChange={setPassword}
             onSubmit={handleSubmit}
+            onSwitchToRegister={() => { setIsLogin(false); }}
           />
         ) : (
           <RegisterForm
@@ -114,24 +128,20 @@ const LoginPage: React.FC = () => {
             password={password}
             confirmPassword={confirmPassword}
             loading={loading}
-            error={error}
             onEmailChange={setEmail}
             onPasswordChange={setPassword}
             onConfirmPasswordChange={setConfirmPassword}
             onSubmit={handleSubmit}
+            onSwitchToLogin={() => { setIsLogin(true); }}
           />
         )}
 
         {/* Demo Credentials */}
-        <div className="mt-8 rounded-lg border border-gray-200 bg-gradient-to-br from-blue-50 to-blue-50 p-4">
-          <p className="text-xs font-bold text-blue-900 uppercase mb-3">Credenciales de Prueba</p>
-          <div className="space-y-1.5 text-sm text-blue-800">
-            <p>
-              📧 <span className="font-mono font-medium">demo@example.com</span>
-            </p>
-            <p>
-              🔑 <span className="font-mono font-medium">demo123</span>
-            </p>
+        <div className="mt-6 rounded-xl border border-[#dfe5ef] bg-[#f8fbff] p-3.5">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#5d87ff]">Credenciales de Prueba</p>
+          <div className="space-y-1 text-xs text-[#5a6a85]">
+            <p>📧 <span className="font-mono">demo@example.com</span></p>
+            <p>🔑 <span className="font-mono">demo123</span></p>
           </div>
         </div>
       </div>

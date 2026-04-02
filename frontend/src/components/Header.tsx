@@ -1,4 +1,5 @@
 import React from 'react';
+import logoHeader from '../assets/branding/logo-header.png';
 
 interface HeaderProps {
   username: string;
@@ -9,49 +10,41 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ username, pageTitle, onMenuClick, onLogout }) => {
   return (
-    <header className="border-b border-gray-200 bg-white px-6 py-4 shadow-sm sticky top-0 z-20">
+    <header className="sticky top-0 z-20 border-b border-[#e8eef8] bg-white px-4 py-4 sm:px-6">
       <div className="flex items-center justify-between gap-4">
-        {/* Left Section */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={onMenuClick}
-            className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d9e3f3] text-[#2a3547] transition-colors hover:bg-[#f3f7ff] lg:hidden"
           >
             ☰
           </button>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">{pageTitle}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Panel de administración</p>
+          <img
+            src={logoHeader}
+            alt="Football Dashboard"
+            className="hidden h-9 w-auto opacity-95 xl:block"
+          />
+          <div className="hidden xl:block">
+            <p className="text-sm font-semibold text-[#2a3547]">{pageTitle}</p>
           </div>
         </div>
 
-        {/* Right Section */}
-        <div className="flex items-center gap-6">
-          {/* Quick Stats */}
-          <div className="hidden md:flex items-center gap-6 pr-6 border-r border-gray-200">
-            <div className="text-right">
-              <p className="text-xs text-gray-600">Usuario</p>
-              <p className="text-sm font-semibold text-gray-900">{username}</p>
-            </div>
+        <div className="hidden max-w-md flex-1 xl:flex">
+          <div className="w-full rounded-lg border border-[#dfe5ef] bg-[#f8fbff] px-3 py-2 text-sm text-[#7a8ca8]">
+            Buscar modulo...
           </div>
+        </div>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-4">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-gray-900">{username}</p>
-              <p className="text-xs text-gray-500">Administrador</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600 text-sm font-bold text-white shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-semibold text-[#2a3547]">{username}</p>
+            <p className="text-xs text-[#7a8ca8]">Administrador</p>
+          </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d6e1f8] bg-[linear-gradient(180deg,#5d87ff_0%,#3f67d8_100%)] text-sm font-bold text-white shadow-[0_10px_20px_rgba(93,135,255,0.35)]">
               {username.charAt(0).toUpperCase()}
             </div>
-          </div>
 
-          {/* Logout Button */}
-          <button
-            onClick={onLogout}
-            className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-sm font-medium transition-colors"
-          >
-            <span>🚪</span>
+          <button onClick={onLogout} className="rounded-lg border border-[#e9d8db] bg-[#fff3f4] px-3 py-2 text-xs font-semibold text-[#b94958] transition-colors hover:bg-[#ffecee]">
             Salir
           </button>
         </div>

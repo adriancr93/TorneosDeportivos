@@ -1,5 +1,6 @@
 package org.example.util;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.model.Usuario;
 import org.example.service.impl.MongoUsuarioService;
@@ -22,7 +23,7 @@ public class AuthHandler {
     }
 
     public Map<String, Object> handleRegister(InputStream body) throws IOException {
-        Map<String, String> payload = mapper.readValue(body, Map.class);
+        Map<String, String> payload = mapper.readValue(body, new TypeReference<Map<String, String>>() {});
         String username = payload.get("username");
         String password = payload.get("password");
 
@@ -49,7 +50,7 @@ public class AuthHandler {
     }
 
     public Map<String, Object> handleLogin(InputStream body) throws IOException {
-        Map<String, String> payload = mapper.readValue(body, Map.class);
+        Map<String, String> payload = mapper.readValue(body, new TypeReference<Map<String, String>>() {});
         String username = payload.get("username");
         String password = payload.get("password");
 

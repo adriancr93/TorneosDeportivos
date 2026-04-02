@@ -20,6 +20,7 @@ public class TorneoController {
     private final MongoPartidoService partidoService;
     private final MongoEstadisticaService estadisticaService;
     private final MongoReporteService reporteService;
+    private final MongoUsuarioService usuarioService;
 
     // Vistas
     private final EquipoView equipoView;
@@ -38,18 +39,22 @@ public class TorneoController {
         TorneoRepository torneoRepo = new TorneoRepository();
         PartidoRepository partidoRepo = new PartidoRepository();
         EstadisticaRepository estadisticaRepo = new EstadisticaRepository();
+        UsuarioRepository usuarioRepo = new UsuarioRepository();
 
         // Inicializar servicios con MongoDB
         this.equipoService = new MongoEquipoService(equipoRepo);
         this.jugadorService = new MongoJugadorService(jugadorRepo);
         this.torneoService = new MongoTorneoService(torneoRepo);
         this.partidoService = new MongoPartidoService(partidoRepo, torneoService);
+        this.partidoService.setJugadorService(jugadorService);
         this.estadisticaService = new MongoEstadisticaService(estadisticaRepo, partidoService, jugadorService);
         this.reporteService = new MongoReporteService(equipoService, jugadorService, torneoService, partidoService);
+        this.usuarioService = new MongoUsuarioService(usuarioRepo);
+        this.usuarioService.asegurarUsuarioDemo("demo@example.com", "demo123");
 
         // Inicializar API REST (puerto 8080) en hilo de fondo
         try {
-            ApiServer apiServer = new ApiServer(equipoService, jugadorService, torneoService, partidoService, estadisticaService, true);
+            ApiServer apiServer = new ApiServer(equipoService, jugadorService, torneoService, partidoService, estadisticaService, usuarioService);
             Thread apiThread = new Thread(apiServer::start, "api-server");
             apiThread.setDaemon(true);
             apiThread.start();
@@ -79,7 +84,6 @@ public class TorneoController {
             ConsoleUI.printMenuOption(5, "Estadísticas");
             ConsoleUI.printMenuOption(6, "Reportes");
             ConsoleUI.printMenuOption(7, "Cargar datos de prueba");
-            ConsoleUI.printMenuOption(8, "Abrir dashboard gráfico");
             ConsoleUI.printMenuExit();
             ConsoleUI.printSeparator();
             opcion = ConsoleUI.leerEntero(scanner, "Seleccione una opción: ");
@@ -91,7 +95,6 @@ public class TorneoController {
                 case 5 -> estadisticaView.mostrarMenu();
                 case 6 -> reporteView.mostrarMenu();
                 case 7 -> cargarDatosDePrueba();
-                case 8 -> abrirDashboard();
                 case 0 -> ConsoleUI.printHeader("¡Hasta pronto!");
                 default -> ConsoleUI.printWarning("Opción inválida. Intente de nuevo.");
             }
@@ -120,6 +123,14 @@ public class TorneoController {
     public List<Partido> generarPartidos(String torneoId) { return partidoService.generarPartidos(torneoId); }
     public boolean registrarResultado(String partidoId, int golesLocal, int golesVisitante) { return partidoService.registrarResultado(partidoId, golesLocal, golesVisitante); }
     public List<Partido> listarPartidosPorTorneo(String torneoId) { return partidoService.listarPartidosPorTorneo(torneoId); }
+    public List<Partido> simularTorneo(String torneoId) {
+        torneoService.activarTorneo(torneoId);
+        List<Partido> partidos = partidoService.generarPartidos(torneoId);
+        if (partidos == null || partidos.isEmpty()) return partidos;
+        partidoService.simularEliminatoria(torneoId, partidos);
+        estadisticaService.generarEstadisticas(torneoId);
+        return partidoService.listarPartidosPorTorneo(torneoId);
+    }
 
     // ─── Servicios de Estadísticas ─────────────────
     public Estadistica generarEstadisticas(String torneoId) { return estadisticaService.generarEstadisticas(torneoId); }
@@ -138,12 +149,5 @@ public class TorneoController {
     private void cargarDatosDePrueba() {
         DataSeeder seeder = new DataSeeder(equipoService, jugadorService, torneoService, partidoService, estadisticaService);
         seeder.cargarDatosDePrueba();
-    }
-
-    // ─── Dashboard gráfico JavaFX ──────────────────
-    private void abrirDashboard() {
-        ConsoleUI.printInfo("Abriendo dashboard gráfico...");
-        DashboardView.lanzar(equipoService, jugadorService, torneoService, partidoService, estadisticaService);
-        ConsoleUI.printSuccess("Dashboard abierto. Podés seguir usando el menú.");
     }
 }

@@ -10,7 +10,9 @@ import org.example.model.Partido;
 import org.example.model.PartidoEstado;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PartidoRepository {
     private final MongoCollection<Document> collection;
@@ -55,6 +57,9 @@ public class PartidoRepository {
                 .append("equipoVisitanteId", p.getEquipoVisitanteId())
                 .append("golesLocal", p.getGolesLocal())
                 .append("golesVisitante", p.getGolesVisitante())
+                .append("golesPorJugador", p.getGolesPorJugador())
+                .append("asistenciasPorJugador", p.getAsistenciasPorJugador())
+                .append("ronda", p.getRonda())
                 .append("estado", p.getEstado() != null ? p.getEstado().name() : null);
     }
 
@@ -67,8 +72,26 @@ public class PartidoRepository {
         p.setEquipoVisitanteId(doc.getString("equipoVisitanteId"));
         p.setGolesLocal(doc.getInteger("golesLocal", 0));
         p.setGolesVisitante(doc.getInteger("golesVisitante", 0));
+        p.setGolesPorJugador(toIntegerMap(doc.get("golesPorJugador")));
+        p.setAsistenciasPorJugador(toIntegerMap(doc.get("asistenciasPorJugador")));
+        p.setRonda(doc.getString("ronda"));
         String estado = doc.getString("estado");
         if (estado != null) p.setEstado(PartidoEstado.valueOf(estado));
         return p;
+    }
+
+    private Map<String, Integer> toIntegerMap(Object raw) {
+        if (!(raw instanceof Document document)) {
+            return new HashMap<>();
+        }
+
+        Map<String, Integer> map = new HashMap<>();
+        for (Map.Entry<String, Object> entry : document.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof Number number) {
+                map.put(entry.getKey(), number.intValue());
+            }
+        }
+        return map;
     }
 }

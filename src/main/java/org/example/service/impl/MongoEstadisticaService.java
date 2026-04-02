@@ -23,6 +23,7 @@ public class MongoEstadisticaService implements IEstadisticaService {
     public Estadistica generarEstadisticas(String torneoId) {
         List<Partido> partidos = partidoService.listarPartidosPorTorneo(torneoId);
         Map<String, int[]> stats = new HashMap<>(); // [puntos, gf, gc, pj]
+        Map<String, Integer> golesPorJugador = new HashMap<>();
 
         for (Partido p : partidos) {
             if (p.getEstado() == PartidoEstado.JUGADO) {
@@ -47,6 +48,10 @@ public class MongoEstadisticaService implements IEstadisticaService {
                     local[0] += 1;
                     visit[0] += 1;
                 }
+
+                for (Map.Entry<String, Integer> gol : p.getGolesPorJugador().entrySet()) {
+                    golesPorJugador.merge(gol.getKey(), gol.getValue(), Integer::sum);
+                }
             }
         }
 
@@ -58,9 +63,9 @@ public class MongoEstadisticaService implements IEstadisticaService {
                 })
                 .collect(Collectors.toList());
 
-        List<GoleadorItem> goleadores = jugadorService.listarTodos().stream()
-                .filter(j -> j.getGoles() > 0)
-                .map(j -> new GoleadorItem(j.getId(), j.getGoles()))
+        List<GoleadorItem> goleadores = golesPorJugador.entrySet().stream()
+            .filter(entry -> entry.getValue() > 0 && jugadorService.buscarPorId(entry.getKey()) != null)
+            .map(entry -> new GoleadorItem(entry.getKey(), entry.getValue()))
                 .sorted((a, b) -> b.getGoles() - a.getGoles())
                 .collect(Collectors.toList());
 

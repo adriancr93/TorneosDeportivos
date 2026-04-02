@@ -16,6 +16,7 @@ const DashboardLayout: React.FC = () => {
   };
 
   const menuItems = [
+    { label: 'Jugadores', path: '/dashboard/jugadores' },
     { label: 'Torneos', path: '/dashboard/torneos' },
     { label: 'Equipos', path: '/dashboard/equipos' },
     { label: 'Partidos', path: '/dashboard/partidos' },
@@ -28,27 +29,25 @@ const DashboardLayout: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+    <div className="flex w-full min-h-screen bg-[#f5f7fb]">
+      <div className="page-wrapper flex w-full">
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <Header
-          username={usuario?.username || 'Usuario'}
-          pageTitle={pageTitle}
-          onMenuClick={() => setSidebarOpen(true)}
-          onLogout={handleLogout}
-        />
+        <main className="body-wrapper w-full min-w-0 bg-[#f5f7fb]">
+          <Header
+            username={usuario?.username || 'Usuario'}
+            pageTitle={pageTitle}
+            onMenuClick={() => setSidebarOpen(true)}
+            onLogout={handleLogout}
+          />
 
-        {/* Page Content */}
-        <section className="min-h-0 flex-1 overflow-auto">
-          <div className="px-6 py-6">
-            <Outlet />
-          </div>
-        </section>
-      </main>
+          <section className="dashboard-canvas min-h-[calc(100vh-76px)] p-4 sm:p-6">
+            <div className="mx-auto max-w-[1440px] rounded-xl border border-[#dfe5ef] bg-white p-4 shadow-[0_10px_30px_rgba(133,146,173,0.14)] sm:p-6">
+              <Outlet />
+            </div>
+          </section>
+        </main>
+      </div>
     </div>
   );
 };

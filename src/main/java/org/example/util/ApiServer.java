@@ -1,18 +1,20 @@
 package org.example.util;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.example.model.*;
 import org.example.service.impl.*;
-import org.example.view.DashboardView;
-import org.example.util.AuthHandler;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
  * Corre en el puerto 8080 y expone datos del torneo en JSON para la app Swift.
  */
 public class ApiServer {
+    private static final int MIN_EQUIPOS_TORNEO = 4;
 
     private final HttpServer server;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -31,15 +34,13 @@ public class ApiServer {
     private final MongoPartidoService partidoService;
     private final MongoEstadisticaService estadisticaService;
     private final MongoUsuarioService usuarioService;
-    private final boolean habilitarAperturaDashboardDesdeRoot;
-    private volatile boolean dashboardLanzadoDesdeRoot;
 
     public ApiServer(MongoEquipoService equipoService,
                      MongoJugadorService jugadorService,
                      MongoTorneoService torneoService,
                      MongoPartidoService partidoService,
                      MongoEstadisticaService estadisticaService) throws IOException {
-        this(equipoService, jugadorService, torneoService, partidoService, estadisticaService, null, false);
+        this(equipoService, jugadorService, torneoService, partidoService, estadisticaService, null);
     }
 
     public ApiServer(MongoEquipoService equipoService,
@@ -47,25 +48,13 @@ public class ApiServer {
                      MongoTorneoService torneoService,
                      MongoPartidoService partidoService,
                      MongoEstadisticaService estadisticaService,
-                     boolean habilitarAperturaDashboardDesdeRoot) throws IOException {
-        this(equipoService, jugadorService, torneoService, partidoService, estadisticaService, null, habilitarAperturaDashboardDesdeRoot);
-    }
-
-    public ApiServer(MongoEquipoService equipoService,
-                     MongoJugadorService jugadorService,
-                     MongoTorneoService torneoService,
-                     MongoPartidoService partidoService,
-                     MongoEstadisticaService estadisticaService,
-                     MongoUsuarioService usuarioService,
-                     boolean habilitarAperturaDashboardDesdeRoot) throws IOException {
+                     MongoUsuarioService usuarioService) throws IOException {
         this.equipoService = equipoService;
         this.jugadorService = jugadorService;
         this.torneoService = torneoService;
         this.partidoService = partidoService;
         this.estadisticaService = estadisticaService;
         this.usuarioService = usuarioService;
-        this.habilitarAperturaDashboardDesdeRoot = habilitarAperturaDashboardDesdeRoot;
-        this.dashboardLanzadoDesdeRoot = false;
 
         server = HttpServer.create(new InetSocketAddress(8080), 0);
         registrarRutas();
@@ -75,11 +64,15 @@ public class ApiServer {
         server.createContext("/", this::servirHome);
         server.createContext("/api/auth/register", this::handleAuthRegister);
         server.createContext("/api/auth/login", this::handleAuthLogin);
-        server.createContext("/api/torneos",    ex -> manejar(ex, this::getTorneos));
-        server.createContext("/api/equipos",    ex -> manejar(ex, this::getEquipos));
-        server.createContext("/api/standings",  ex -> manejar(ex, this::getStandings));
-        server.createContext("/api/goleadores", ex -> manejar(ex, this::getGoleadores));
-        server.createContext("/api/partidos",   ex -> manejar(ex, this::getPartidos));
+        server.createContext("/api/torneos", this::handleTorneos);
+        server.createContext("/api/equipos", this::handleEquipos);
+        server.createContext("/api/jugadores", this::handleJugadores);
+        server.createContext("/api/partidos", this::handlePartidos);
+        server.createContext("/api/partidos/generar", this::handleGenerarPartidos);
+        server.createContext("/api/torneos/simular", this::handleSimularTorneo);
+        server.createContext("/api/standings", this::handleStandings);
+        server.createContext("/api/goleadores", this::handleGoleadores);
+        server.createContext("/api/asistencias", this::handleAsistencias);
         server.createContext("/api/openapi.json", this::servirOpenApi);
         server.createContext("/swagger-ui", this::servirSwaggerUi);
         server.createContext("/swagger", this::redirigirSwaggerUi);
@@ -101,12 +94,17 @@ public class ApiServer {
     // ─── Handlers ─────────────────────────────────
 
     private void handleAuthRegister(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
             return;
         }
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
 
         if (usuarioService == null) {
             byte[] error = "{\"success\":false,\"message\":\"Servicio de usuarios no disponible\"}".getBytes();
@@ -135,12 +133,17 @@ public class ApiServer {
     }
 
     private void handleAuthLogin(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
         if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
             return;
         }
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
 
         if (usuarioService == null) {
             byte[] error = "{\"success\":false,\"message\":\"Servicio de usuarios no disponible\"}".getBytes();
@@ -168,117 +171,539 @@ public class ApiServer {
         }
     }
 
+    private void handleTorneos(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        try {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, getTorneos());
+                return;
+            }
+
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+
+            Map<String, Object> body = readJsonMap(exchange);
+            String nombre = stringValue(body.get("nombre"));
+            String sede = stringValue(body.get("sede"));
+            String fechaInicio = stringValue(body.get("fechaInicio"));
+            String fechaFin = stringValue(body.get("fechaFin"));
+            List<String> equipoIds = uniqueStringList(body.get("equipoIds"));
+
+            if (nombre.isBlank() || fechaInicio.isBlank() || fechaFin.isBlank()) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "Nombre y fechas son obligatorios"));
+                return;
+            }
+
+            if (equipoIds.size() < MIN_EQUIPOS_TORNEO) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El torneo debe tener al menos " + MIN_EQUIPOS_TORNEO + " equipos"));
+                return;
+            }
+
+            for (String equipoId : equipoIds) {
+                if (equipoService.buscarPorId(equipoId) == null) {
+                    sendJson(exchange, 400, Map.of("success", false, "message", "Equipo no encontrado: " + equipoId));
+                    return;
+                }
+            }
+
+            Torneo torneo = new Torneo();
+            torneo.setNombre(nombre);
+            torneo.setSede(sede.isBlank() ? "Por definir" : sede);
+            torneo.setFechaInicio(fechaInicio);
+            torneo.setFechaFin(fechaFin);
+            torneo.setEquipoIds(equipoIds);
+            Torneo creado = torneoService.crearTorneo(torneo);
+            sendJson(exchange, 201, Map.of("success", true, "message", "Torneo creado", "torneo", mapTorneo(creado)));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handleEquipos(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        try {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, getEquipos());
+                return;
+            }
+
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+
+            Map<String, Object> body = readJsonMap(exchange);
+            String nombre = stringValue(body.get("nombre"));
+            String ciudad = stringValue(body.get("ciudad"));
+            String entrenador = stringValue(body.get("entrenador"));
+            int anioFundacion = intValue(body.get("anioFundacion"));
+
+            if (nombre.isBlank() || ciudad.isBlank() || entrenador.isBlank()) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "Nombre, ciudad y entrenador son obligatorios"));
+                return;
+            }
+
+            Equipo equipo = new Equipo();
+            equipo.setNombre(nombre);
+            equipo.setCiudad(ciudad);
+            equipo.setEntrenador(entrenador);
+            equipo.setAnioFundacion(anioFundacion);
+            Equipo creado = equipoService.crearEquipo(equipo);
+            sendJson(exchange, 201, Map.of("success", true, "message", "Equipo creado", "equipo", mapEquipo(creado)));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handleJugadores(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        try {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendJson(exchange, 200, getJugadores(exchange));
+                return;
+            }
+
+            if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+
+            Map<String, Object> body = readJsonMap(exchange);
+            String nombre = stringValue(body.get("nombre"));
+            String posicion = stringValue(body.get("posicion"));
+            String equipoId = stringValue(body.get("equipoId"));
+            int edad = intValue(body.get("edad"));
+            int dorsal = intValue(body.get("dorsal"));
+
+            if (nombre.isBlank() || posicion.isBlank() || equipoId.isBlank()) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "Nombre, posición y equipo son obligatorios"));
+                return;
+            }
+
+            if (equipoService.buscarPorId(equipoId) == null) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El equipo seleccionado no existe"));
+                return;
+            }
+
+            Jugador jugador = new Jugador();
+            jugador.setNombre(nombre);
+            jugador.setPosicion(posicion);
+            jugador.setEdad(edad);
+            jugador.setDorsal(dorsal);
+            jugador.setEquipoId(equipoId);
+            Jugador creado = jugadorService.registrarJugador(jugador);
+            sendJson(exchange, 201, Map.of("success", true, "message", "Jugador creado", "jugador", mapJugador(creado)));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handlePartidos(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        try {
+            sendJson(exchange, 200, getPartidos(exchange));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handleGenerarPartidos(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        try {
+            String torneoId = extractTorneoId(exchange);
+            Torneo torneo = requireTorneo(torneoId);
+            if (torneo.getEquipoIds() == null || torneo.getEquipoIds().size() < MIN_EQUIPOS_TORNEO) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El torneo requiere al menos " + MIN_EQUIPOS_TORNEO + " equipos para generar partidos"));
+                return;
+            }
+
+            torneoService.activarTorneo(torneo.getId());
+            List<Partido> partidos = partidoService.generarPartidos(torneo.getId());
+            estadisticaService.generarEstadisticas(torneo.getId());
+            sendJson(exchange, 200, Map.of("success", true, "message", "Partidos generados", "partidos", partidos.stream().map(this::mapPartido).collect(Collectors.toList())));
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handleSimularTorneo(HttpExchange exchange) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        try {
+            String torneoId = extractTorneoId(exchange);
+            Torneo torneo = requireTorneo(torneoId);
+            if (torneo.getEquipoIds() == null || torneo.getEquipoIds().size() < MIN_EQUIPOS_TORNEO) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El torneo requiere al menos " + MIN_EQUIPOS_TORNEO + " equipos para simular"));
+                return;
+            }
+
+            torneoService.activarTorneo(torneo.getId());
+            List<Partido> partidos = partidoService.generarPartidos(torneo.getId());
+
+            // Simulate round-by-round elimination bracket
+            simularEliminatoria(torneo.getId(), partidos);
+
+            Estadistica estadistica = estadisticaService.generarEstadisticas(torneo.getId());
+            sendJson(exchange, 200, Map.of(
+                    "success", true,
+                    "message", "Torneo simulado correctamente",
+                    "partidos", partidoService.listarPartidosPorTorneo(torneo.getId()).stream().map(this::mapPartido).collect(Collectors.toList()),
+                    "standings", buildStandings(torneo.getId(), estadistica),
+                    "goleadores", buildPlayerRanking(torneo.getId(), false),
+                    "asistencias", buildPlayerRanking(torneo.getId(), true)
+            ));
+        } catch (IllegalArgumentException e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", e.getMessage()));
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void handleStandings(HttpExchange exchange) throws IOException {
+        handleReadOnly(exchange, () -> getStandings(exchange));
+    }
+
+    private void handleGoleadores(HttpExchange exchange) throws IOException {
+        handleReadOnly(exchange, () -> getGoleadores(exchange));
+    }
+
+    private void handleAsistencias(HttpExchange exchange) throws IOException {
+        handleReadOnly(exchange, () -> getAsistencias(exchange));
+    }
+
     private Object getTorneos() {
-        return torneoService.listarTorneos();
+        return torneoService.listarTorneos().stream().map(this::mapTorneo).collect(Collectors.toList());
     }
 
     private Object getEquipos() {
-        return equipoService.listarEquipos();
+        return equipoService.listarEquipos().stream().map(this::mapEquipo).collect(Collectors.toList());
     }
 
-    private Object getStandings() {
-        // Usa el primer torneo activo o el último
-        List<Torneo> torneos = torneoService.listarTorneos();
-        if (torneos.isEmpty()) return Collections.emptyList();
+    private Object getJugadores(HttpExchange exchange) {
+        String equipoId = queryParams(exchange).get("equipoId");
+        List<Jugador> jugadores = (equipoId == null || equipoId.isBlank())
+                ? jugadorService.listarTodos()
+                : jugadorService.listarJugadoresPorEquipo(equipoId);
+        return jugadores.stream().map(this::mapJugador).collect(Collectors.toList());
+    }
 
-        Torneo torneo = torneos.stream()
-                .filter(t -> t.getEstado() == TorneoEstado.ACTIVO)
-                .findFirst()
-                .orElse(torneos.get(torneos.size() - 1));
+    private Object getStandings(HttpExchange exchange) {
+        String torneoId = resolveTorneoId(exchange);
+        if (torneoId == null) return Collections.emptyList();
+        Estadistica est = estadisticaService.visualizarEstadisticas(torneoId);
+        if (est == null) est = estadisticaService.generarEstadisticas(torneoId);
+        return buildStandings(torneoId, est);
+    }
 
-        Estadistica est = estadisticaService.visualizarEstadisticas(torneo.getId());
-        if (est == null) est = estadisticaService.generarEstadisticas(torneo.getId());
-        if (est == null || est.getTabla() == null) return Collections.emptyList();
+    private Object getGoleadores(HttpExchange exchange) {
+        String torneoId = resolveTorneoId(exchange);
+        return torneoId == null ? Collections.emptyList() : buildPlayerRanking(torneoId, false);
+    }
 
-        // Enriquecer con nombre del equipo
+    private Object getAsistencias(HttpExchange exchange) {
+        String torneoId = resolveTorneoId(exchange);
+        return torneoId == null ? Collections.emptyList() : buildPlayerRanking(torneoId, true);
+    }
+
+    private Object getPartidos(HttpExchange exchange) {
+        String torneoId = resolveTorneoId(exchange);
+        if (torneoId == null) return Collections.emptyList();
+        return partidoService.listarPartidosPorTorneo(torneoId).stream().map(this::mapPartido).collect(Collectors.toList());
+    }
+
+    private void handleReadOnly(HttpExchange exchange, DataSupplier supplier) throws IOException {
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+
+        try {
+            sendJson(exchange, 200, supplier.get());
+        } catch (Exception e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    private void simularEliminatoria(String torneoId, List<Partido> initialPartidos) {
+        partidoService.simularEliminatoria(torneoId, initialPartidos);
+    }
+
+    private List<Map<String, Object>> buildStandings(String torneoId, Estadistica estadistica) {
+        if (estadistica == null || estadistica.getTabla() == null) {
+            return Collections.emptyList();
+        }
+
+        List<Partido> partidos = partidoService.listarPartidosPorTorneo(torneoId);
         List<Map<String, Object>> resultado = new ArrayList<>();
-        for (int i = 0; i < est.getTabla().size(); i++) {
-            TablaPosicionItem item = est.getTabla().get(i);
+        for (int i = 0; i < estadistica.getTabla().size(); i++) {
+            TablaPosicionItem item = estadistica.getTabla().get(i);
             Equipo eq = equipoService.buscarPorId(item.getEquipoId());
+            int ganados = 0;
+            int empatados = 0;
+            int perdidos = 0;
+
+            for (Partido partido : partidos) {
+                if (partido.getEstado() != PartidoEstado.JUGADO) continue;
+                boolean local = item.getEquipoId().equals(partido.getEquipoLocalId());
+                boolean visitante = item.getEquipoId().equals(partido.getEquipoVisitanteId());
+                if (!local && !visitante) continue;
+                if (partido.getGolesLocal() == partido.getGolesVisitante()) empatados++;
+                else if ((local && partido.getGolesLocal() > partido.getGolesVisitante())
+                        || (visitante && partido.getGolesVisitante() > partido.getGolesLocal())) ganados++;
+                else perdidos++;
+            }
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("posicion", i + 1);
             row.put("equipoId", item.getEquipoId());
-            row.put("equipo", eq != null ? eq.getNombre() : item.getEquipoId());
+            row.put("nombre", eq != null ? eq.getNombre() : item.getEquipoId());
+            row.put("partidos", item.getPartidosJugados());
             row.put("puntos", item.getPuntos());
-            row.put("partidosJugados", item.getPartidosJugados());
-            row.put("golesFavor", item.getGolesFavor());
-            row.put("golesContra", item.getGolesContra());
+            row.put("ganados", ganados);
+            row.put("empatados", empatados);
+            row.put("perdidos", perdidos);
+            row.put("golesAFavor", item.getGolesFavor());
+            row.put("golesEnContra", item.getGolesContra());
             row.put("diferencia", item.getGolesFavor() - item.getGolesContra());
-
-            // Calcular PG, PE, PP
-            List<Partido> partidos = partidoService.listarPartidosPorTorneo(torneo.getId());
-            int pg = 0, pe = 0, pp = 0;
-            for (Partido p : partidos) {
-                if (p.getEstado() != PartidoEstado.JUGADO) continue;
-                boolean esL = item.getEquipoId().equals(p.getEquipoLocalId());
-                boolean esV = item.getEquipoId().equals(p.getEquipoVisitanteId());
-                if (!esL && !esV) continue;
-                if (p.getGolesLocal() == p.getGolesVisitante()) { pe++; }
-                else if ((esL && p.getGolesLocal() > p.getGolesVisitante())
-                      || (esV && p.getGolesVisitante() > p.getGolesLocal())) { pg++; }
-                else { pp++; }
-            }
-            row.put("victorias", pg);
-            row.put("empates", pe);
-            row.put("derrotas", pp);
             resultado.add(row);
         }
         return resultado;
     }
 
-    private Object getGoleadores() {
-        List<Torneo> torneos = torneoService.listarTorneos();
-        if (torneos.isEmpty()) return Collections.emptyList();
+    private List<Map<String, Object>> buildPlayerRanking(String torneoId, boolean asistencias) {
+        Map<String, Integer> ranking = new HashMap<>();
+        for (Partido partido : partidoService.listarPartidosPorTorneo(torneoId)) {
+            if (partido.getEstado() != PartidoEstado.JUGADO) continue;
+            Map<String, Integer> source = asistencias ? partido.getAsistenciasPorJugador() : partido.getGolesPorJugador();
+            for (Map.Entry<String, Integer> entry : source.entrySet()) {
+                ranking.merge(entry.getKey(), entry.getValue(), Integer::sum);
+            }
+        }
 
-        Torneo torneo = torneos.stream()
-                .filter(t -> t.getEstado() == TorneoEstado.ACTIVO)
-                .findFirst()
-                .orElse(torneos.get(torneos.size() - 1));
-
-        Estadistica est = estadisticaService.visualizarEstadisticas(torneo.getId());
-        if (est == null || est.getGoleadores() == null) return Collections.emptyList();
-
-        return est.getGoleadores().stream()
-                .filter(g -> g.getGoles() > 0)
-                .map(g -> {
-                    Jugador j = jugadorService.buscarPorId(g.getJugadorId());
+        return ranking.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                .map(entry -> {
+                    Jugador jugador = jugadorService.buscarPorId(entry.getKey());
+                    Equipo equipo = jugador != null ? equipoService.buscarPorId(jugador.getEquipoId()) : null;
                     Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("jugadorId", g.getJugadorId());
-                    row.put("nombre", j != null ? j.getNombre() : g.getJugadorId());
-                    row.put("goles", g.getGoles());
-                    if (j != null) {
-                        Equipo eq = equipoService.buscarPorId(j.getEquipoId());
-                        row.put("equipo", eq != null ? eq.getNombre() : "");
-                    }
+                    row.put("jugadorId", entry.getKey());
+                    row.put("nombre", jugador != null ? jugador.getNombre() : entry.getKey());
+                    row.put("equipo", equipo != null ? equipo.getNombre() : "Sin equipo");
+                    row.put(asistencias ? "asistencias" : "goles", entry.getValue());
+                    row.put("posicion", jugador != null ? jugador.getPosicion() : "");
                     return row;
                 })
                 .collect(Collectors.toList());
     }
 
-    private Object getPartidos() {
+    private Map<String, Object> mapTorneo(Torneo torneo) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("torneoId", torneo.getId());
+        row.put("nombre", torneo.getNombre());
+        row.put("sede", torneo.getSede());
+        row.put("fechaInicio", torneo.getFechaInicio());
+        row.put("fechaFin", torneo.getFechaFin());
+        row.put("estado", torneo.getEstado() != null ? torneo.getEstado().name() : TorneoEstado.CREADO.name());
+        row.put("equipos", torneo.getEquipoIds() != null ? torneo.getEquipoIds() : Collections.emptyList());
+        row.put("cantidadEquipos", torneo.getEquipoIds() != null ? torneo.getEquipoIds().size() : 0);
+        return row;
+    }
+
+    private Map<String, Object> mapEquipo(Equipo equipo) {
+        List<Jugador> jugadores = jugadorService.listarJugadoresPorEquipo(equipo.getId());
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("equipoId", equipo.getId());
+        row.put("nombre", equipo.getNombre());
+        row.put("ciudad", equipo.getCiudad());
+        row.put("entrenador", equipo.getEntrenador());
+        row.put("anioFundacion", equipo.getAnioFundacion());
+        row.put("jugadores", jugadores.stream().map(this::mapJugador).collect(Collectors.toList()));
+        return row;
+    }
+
+    private Map<String, Object> mapJugador(Jugador jugador) {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("jugadorId", jugador.getId());
+        row.put("nombre", jugador.getNombre());
+        row.put("edad", jugador.getEdad());
+        row.put("posicion", jugador.getPosicion());
+        row.put("numero", jugador.getDorsal());
+        row.put("equipoId", jugador.getEquipoId());
+        return row;
+    }
+
+    private Map<String, Object> mapPartido(Partido partido) {
+        Equipo local = equipoService.buscarPorId(partido.getEquipoLocalId());
+        Equipo visitante = equipoService.buscarPorId(partido.getEquipoVisitanteId());
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("partidoId", partido.getId());
+        row.put("torneoId", partido.getTorneoId());
+        row.put("fecha", partido.getFecha());
+        row.put("estado", partido.getEstado() != null ? partido.getEstado().name() : PartidoEstado.PENDIENTE.name());
+        row.put("equipoLocal", local != null ? local.getNombre() : partido.getEquipoLocalId());
+        row.put("equipoVisitante", visitante != null ? visitante.getNombre() : partido.getEquipoVisitanteId());
+        row.put("equipoLocalId", partido.getEquipoLocalId());
+        row.put("equipoVisitanteId", partido.getEquipoVisitanteId());
+        row.put("golesLocal", partido.getEstado() == PartidoEstado.JUGADO ? partido.getGolesLocal() : -1);
+        row.put("golesVisitante", partido.getEstado() == PartidoEstado.JUGADO ? partido.getGolesVisitante() : -1);
+        row.put("ronda", partido.getRonda());
+        row.put("goleadores", partido.getGolesPorJugador());
+        row.put("asistencias", partido.getAsistenciasPorJugador());
+        return row;
+    }
+
+    private Map<String, Object> readJsonMap(HttpExchange exchange) throws IOException {
+        byte[] bodyBytes = exchange.getRequestBody().readAllBytes();
+        if (bodyBytes.length == 0) {
+            return new HashMap<>();
+        }
+        return mapper.readValue(bodyBytes, new TypeReference<Map<String, Object>>() {});
+    }
+
+    private void sendJson(HttpExchange exchange, int status, Object payload) throws IOException {
+        byte[] response = mapper.writeValueAsBytes(payload);
+        exchange.sendResponseHeaders(status, response.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+        }
+    }
+
+    private String resolveTorneoId(HttpExchange exchange) {
+        String torneoId = queryParams(exchange).get("torneoId");
+        if (torneoId != null && !torneoId.isBlank()) {
+            return torneoId;
+        }
+
         List<Torneo> torneos = torneoService.listarTorneos();
-        if (torneos.isEmpty()) return Collections.emptyList();
+        if (torneos.isEmpty()) {
+            return null;
+        }
 
-        Torneo torneo = torneos.stream()
-                .filter(t -> t.getEstado() == TorneoEstado.ACTIVO)
+        return torneos.stream()
+                .filter(torneo -> torneo.getEstado() == TorneoEstado.ACTIVO)
                 .findFirst()
-                .orElse(torneos.get(torneos.size() - 1));
+                .orElse(torneos.get(torneos.size() - 1))
+                .getId();
+    }
 
-        return partidoService.listarPartidosPorTorneo(torneo.getId()).stream()
-                .map(p -> {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("id", p.getId());
-                    row.put("fecha", p.getFecha());
-                    row.put("estado", p.getEstado());
-                    Equipo local = equipoService.buscarPorId(p.getEquipoLocalId());
-                    Equipo visitante = equipoService.buscarPorId(p.getEquipoVisitanteId());
-                    row.put("local", local != null ? local.getNombre() : p.getEquipoLocalId());
-                    row.put("visitante", visitante != null ? visitante.getNombre() : p.getEquipoVisitanteId());
-                    row.put("golesLocal", p.getGolesLocal());
-                    row.put("golesVisitante", p.getGolesVisitante());
-                    return row;
-                })
+    private String extractTorneoId(HttpExchange exchange) throws IOException {
+        Map<String, Object> body = readJsonMap(exchange);
+        String torneoId = stringValue(body.get("torneoId"));
+        if (torneoId.isBlank()) {
+            throw new IllegalArgumentException("Debes indicar el torneo a operar");
+        }
+        return torneoId;
+    }
+
+    private Torneo requireTorneo(String torneoId) {
+        Torneo torneo = torneoService.buscarPorId(torneoId);
+        if (torneo == null) {
+            throw new IllegalArgumentException("Torneo no encontrado");
+        }
+        return torneo;
+    }
+
+    private Map<String, String> queryParams(HttpExchange exchange) {
+        Map<String, String> params = new HashMap<>();
+        String rawQuery = exchange.getRequestURI().getRawQuery();
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return params;
+        }
+
+        for (String pair : rawQuery.split("&")) {
+            String[] tokens = pair.split("=", 2);
+            String key = URLDecoder.decode(tokens[0], StandardCharsets.UTF_8);
+            String value = tokens.length > 1 ? URLDecoder.decode(tokens[1], StandardCharsets.UTF_8) : "";
+            params.put(key, value);
+        }
+        return params;
+    }
+
+    private List<String> uniqueStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return new ArrayList<>();
+        }
+        return list.stream()
+                .map(this::stringValue)
+                .filter(item -> !item.isBlank())
+                .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
+    }
+
+    private int intValue(Object value) {
+        if (value == null) return 0;
+        if (value instanceof Number number) return number.intValue();
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
     }
 
     // ─── Infraestructura HTTP ──────────────────────
@@ -300,8 +725,6 @@ public class ApiServer {
             return;
         }
 
-        lanzarDashboardDesdeRootSiCorresponde();
-
         String html = """
                 <!doctype html>
                 <html lang=\"es\">
@@ -313,7 +736,7 @@ public class ApiServer {
                 <body style=\"font-family: system-ui, sans-serif; padding: 24px;\">
                   <h1>TorneosDeportivos API</h1>
                   <p>El servidor esta corriendo correctamente.</p>
-                  <p>Al abrir esta URL se intenta lanzar el dashboard JavaFX una sola vez (modo consola).</p>
+                                    <p>La interfaz grafica principal vive en el frontend React (http://localhost:5173).</p>
                   <ul>
                     <li><a href=\"/swagger-ui\">Swagger UI</a></li>
                     <li><a href=\"/api/openapi.json\">OpenAPI JSON</a></li>
@@ -334,19 +757,6 @@ public class ApiServer {
         exchange.sendResponseHeaders(200, response.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(response);
-        }
-    }
-
-    private synchronized void lanzarDashboardDesdeRootSiCorresponde() {
-        if (!habilitarAperturaDashboardDesdeRoot || dashboardLanzadoDesdeRoot) {
-            return;
-        }
-        dashboardLanzadoDesdeRoot = true;
-        try {
-            DashboardView.lanzar(equipoService, jugadorService, torneoService, partidoService, estadisticaService);
-            System.out.println("\u001B[36m [API] Dashboard JavaFX abierto desde /\u001B[0m");
-        } catch (Exception e) {
-            System.err.println("[API] No se pudo abrir Dashboard JavaFX desde /: " + e.getMessage());
         }
     }
 
@@ -640,10 +1050,22 @@ public class ApiServer {
     @FunctionalInterface
     interface DataSupplier { Object get() throws Exception; }
 
+    private void setCorsHeaders(HttpExchange exchange) {
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+    }
+
+    @SuppressWarnings("unused")
     private void manejar(HttpExchange exchange, DataSupplier supplier) throws IOException {
         // CORS para desarrollo local
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        setCorsHeaders(exchange);
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
 
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);

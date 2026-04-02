@@ -1,5 +1,8 @@
 package org.example.model;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class Partido {
     private String id;
     private String torneoId;
@@ -9,6 +12,9 @@ public class Partido {
     private int golesLocal;
     private int golesVisitante;
     private PartidoEstado estado;
+    private String ronda;
+    private Map<String, Integer> golesPorJugador;
+    private Map<String, Integer> asistenciasPorJugador;
 
     public Partido() {}
 
@@ -21,6 +27,8 @@ public class Partido {
         this.golesLocal = golesLocal;
         this.golesVisitante = golesVisitante;
         this.estado = estado;
+        this.golesPorJugador = new HashMap<>();
+        this.asistenciasPorJugador = new HashMap<>();
     }
 
     public String getId() { return id; }
@@ -39,6 +47,18 @@ public class Partido {
     public void setGolesVisitante(int golesVisitante) { this.golesVisitante = golesVisitante; }
     public PartidoEstado getEstado() { return estado; }
     public void setEstado(PartidoEstado estado) { this.estado = estado; }
+    public Map<String, Integer> getGolesPorJugador() {
+        if (golesPorJugador == null) golesPorJugador = new HashMap<>();
+        return golesPorJugador;
+    }
+    public void setGolesPorJugador(Map<String, Integer> golesPorJugador) { this.golesPorJugador = golesPorJugador; }
+    public Map<String, Integer> getAsistenciasPorJugador() {
+        if (asistenciasPorJugador == null) asistenciasPorJugador = new HashMap<>();
+        return asistenciasPorJugador;
+    }
+    public void setAsistenciasPorJugador(Map<String, Integer> asistenciasPorJugador) { this.asistenciasPorJugador = asistenciasPorJugador; }
+    public String getRonda() { return ronda; }
+    public void setRonda(String ronda) { this.ronda = ronda; }
 
     @Override
     public String toString() {
@@ -46,11 +66,14 @@ public class Partido {
                 "id='" + id + '\'' +
                 ", torneoId='" + torneoId + '\'' +
                 ", fecha='" + fecha + '\'' +
+                ", ronda='" + ronda + '\'' +
                 ", equipoLocalId='" + equipoLocalId + '\'' +
                 ", equipoVisitanteId='" + equipoVisitanteId + '\'' +
                 ", golesLocal=" + golesLocal +
                 ", golesVisitante=" + golesVisitante +
                 ", estado=" + estado +
+                ", golesPorJugador=" + golesPorJugador +
+                ", asistenciasPorJugador=" + asistenciasPorJugador +
                 '}';
     }
 }
