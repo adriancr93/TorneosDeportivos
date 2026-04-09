@@ -135,15 +135,6 @@ const LoginPage: React.FC = () => {
             onSwitchToLogin={() => { setIsLogin(true); }}
           />
         )}
-
-        {/* Demo Credentials */}
-        <div className="mt-6 rounded-xl border border-[#dfe5ef] bg-[#f8fbff] p-3.5">
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#5d87ff]">Credenciales de Prueba</p>
-          <div className="space-y-1 text-xs text-[#5a6a85]">
-            <p>📧 <span className="font-mono">demo@example.com</span></p>
-            <p>🔑 <span className="font-mono">demo123</span></p>
-          </div>
-        </div>
       </div>
     </AuthLayout>
   );
