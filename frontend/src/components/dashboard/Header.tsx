@@ -1,5 +1,5 @@
 import React from 'react';
-import logoHeader from '../assets/branding/logo-header.png';
+import logoHeader from '../../assets/branding/logo-header.png';
 
 interface HeaderProps {
   username: string;

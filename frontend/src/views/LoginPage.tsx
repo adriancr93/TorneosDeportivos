@@ -4,10 +4,10 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { authApi } from '../api/client';
 import { useAuth } from '../lib/authContext';
-import AuthLayout from '../components/AuthLayout';
-import AuthTabs from '../components/AuthTabs';
-import LoginForm from '../components/LoginForm';
-import RegisterForm from '../components/RegisterForm';
+import AuthLayout from '../components/layouts/AuthLayout';
+import AuthTabs from '../components/dashboard/AuthTabs';
+import LoginForm from '../components/auth/LoginForm';
+import RegisterForm from '../components/auth/RegisterForm';
 
 const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);

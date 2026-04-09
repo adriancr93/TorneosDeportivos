@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import logoLogin from '../assets/branding/logo-login.png';
-import rocketImage from '../assets/dashboard/rocket.png';
+import logoLogin from '../../assets/branding/logo-login.png';
+import rocketImage from '../../assets/dashboard/rocket.png';
 
 interface SidebarProps {
   isOpen: boolean;

@@ -4,7 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './lib/authContext';
 import ProtectedRoute from './lib/ProtectedRoute';
 import LoginPage from './views/LoginPage';
-import DashboardLayout from './components/DashboardLayout';
+import DashboardLayout from './components/layouts/DashboardLayout';
 import JugadoresPage from './views/JugadoresPage';
 import TorneosPage from './views/TorneosPage';
 import EquiposPage from './views/EquiposPage';

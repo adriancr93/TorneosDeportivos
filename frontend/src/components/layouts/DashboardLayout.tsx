@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../lib/authContext';
-import Sidebar from './Sidebar';
-import Header from './Header';
+import { useAuth } from '../../lib/authContext';
+import Sidebar from '../dashboard/Sidebar';
+import Header from '../dashboard/Header';
 
 const DashboardLayout: React.FC = () => {
   const { usuario, logout } = useAuth();

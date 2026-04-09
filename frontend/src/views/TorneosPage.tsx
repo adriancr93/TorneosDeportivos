@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { partidosApi, torneosApi, equiposApi } from '../api/client';
 import type { Equipo, Torneo } from '../types';
-import StatsCard from '../components/StatsCard';
+import StatsCard from '../components/dashboard/StatsCard';
 
 const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)]';
 const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] placeholder:text-[#91a1bc] focus:border-[#5d87ff] focus:outline-none';

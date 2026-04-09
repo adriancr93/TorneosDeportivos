@@ -1,5 +1,5 @@
 import React from 'react';
-import rocketImage from '../assets/dashboard/rocket.png';
+import rocketImage from '../../assets/dashboard/rocket.png';
 
 interface StatsCardProps {
   label: string;
