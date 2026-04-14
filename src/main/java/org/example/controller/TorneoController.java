@@ -124,12 +124,41 @@ public class TorneoController {
     public boolean registrarResultado(String partidoId, int golesLocal, int golesVisitante) { return partidoService.registrarResultado(partidoId, golesLocal, golesVisitante); }
     public List<Partido> listarPartidosPorTorneo(String torneoId) { return partidoService.listarPartidosPorTorneo(torneoId); }
     public List<Partido> simularTorneo(String torneoId) {
+        Torneo torneo = torneoService.buscarPorId(torneoId);
+        if (torneo == null) return List.of();
+
         torneoService.activarTorneo(torneoId);
         List<Partido> partidos = partidoService.generarPartidos(torneoId);
         if (partidos == null || partidos.isEmpty()) return partidos;
-        partidoService.simularEliminatoria(torneoId, partidos);
-        estadisticaService.generarEstadisticas(torneoId);
+        if (torneo.getModalidad() == ModalidadTorneo.LIGA) {
+            partidoService.simularLiga(torneoId, partidos);
+            Estadistica estadistica = estadisticaService.generarEstadisticas(torneoId);
+            registrarPodioDesdeTabla(torneoId, estadistica);
+        } else {
+            partidoService.simularEliminatoria(torneoId, partidos);
+            java.util.Map<String, String> podio = partidoService.obtenerPodioTorneo(torneoId);
+            if (!podio.isEmpty()) {
+                torneoService.registrarPodioFinal(
+                        torneoId,
+                        podio.get("campeonId"),
+                        podio.get("subcampeonId"),
+                        podio.get("tercerLugarId")
+                );
+            }
+            estadisticaService.generarEstadisticas(torneoId);
+        }
         return partidoService.listarPartidosPorTorneo(torneoId);
+    }
+
+    private void registrarPodioDesdeTabla(String torneoId, Estadistica estadistica) {
+        if (estadistica == null || estadistica.getTabla() == null || estadistica.getTabla().isEmpty()) {
+            return;
+        }
+
+        String campeonId = estadistica.getTabla().size() > 0 ? estadistica.getTabla().get(0).getEquipoId() : null;
+        String subcampeonId = estadistica.getTabla().size() > 1 ? estadistica.getTabla().get(1).getEquipoId() : null;
+        String tercerLugarId = estadistica.getTabla().size() > 2 ? estadistica.getTabla().get(2).getEquipoId() : null;
+        torneoService.registrarPodioFinal(torneoId, campeonId, subcampeonId, tercerLugarId);
     }
 
     // ─── Servicios de Estadísticas ─────────────────

@@ -5,11 +5,13 @@ import { toast } from 'react-toastify';
 import { authApi } from '../api/client';
 import { useAuth } from '../lib/authContext';
 
-const LoginPage: React.FC = () => {
+const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -42,7 +44,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
 
     try {
-      if (!email || !password) {
+      if (!email || !password || !confirmPassword) {
         toast.error('Por favor completa todos los campos');
         return;
       }
@@ -57,10 +59,15 @@ const LoginPage: React.FC = () => {
         return;
       }
 
-      const response = await authApi.login(email, password);
+      if (password !== confirmPassword) {
+        toast.error('Las contraseñas no coinciden');
+        return;
+      }
+
+      const response = await authApi.register(email, password);
 
       if (!response.success) {
-        toast.error(response.message || 'Correo o contraseña incorrectos');
+        toast.error(response.message || 'Error al crear la cuenta');
         return;
       }
 
@@ -76,10 +83,10 @@ const LoginPage: React.FC = () => {
   return (
       <form onSubmit={handleSubmit} className="space-y-6 bg-white p-10">
         <div className="mb-6 text-center">
-          <h2 className="text-3xl font-extrabold text-[#2a3547]">Iniciar Sesión</h2>
-          <p className="mt-1 text-sm text-[#5a6a85]">Accede al panel de torneos deportivos</p>
+          <h2 className="text-3xl font-extrabold text-[#2a3547]">Crear Cuenta</h2>
+          <p className="mt-1 text-sm text-[#5a6a85]">Registra tu usuario para administrar torneos</p>
         </div>
-
+        
         <div className="flex flex-col gap-3">
           <label htmlFor="email" className="text-lg font-medium text-[#2a3547]">Email</label>
           <input
@@ -102,7 +109,7 @@ const LoginPage: React.FC = () => {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
+              placeholder="Password de registro"
               className="w-full border border-gray-300 p-3 pr-12"
               disabled={loading}
               required
@@ -118,22 +125,45 @@ const LoginPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="flex flex-col gap-3">
+          <label htmlFor="confirmPassword" className="text-lg font-medium text-[#2a3547]">Confirmar Password</label>
+          <div className="relative">
+            <input
+              id="confirmPassword"
+              type={showConfirm ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirmar password"
+              className="w-full border border-gray-300 p-3 pr-12"
+              disabled={loading}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(!showConfirm)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#5d87ff]"
+              tabIndex={-1}
+            >
+              {showConfirm ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={loading}
           className="w-full bg-[#5d87ff] p-3 text-xl font-black text-white transition-colors hover:bg-[#4b74e8] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
+          {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
         </button>
 
         <nav className="mt-6 flex flex-col space-y-3 text-center">
-          <Link to="/register" className="font-normal text-gray-500 hover:underline">
-            No tienes cuenta? Crea una
+          <Link to="/login" className="font-normal text-gray-500 hover:underline">
+            Ya tienes cuenta? Inicia sesión
           </Link>
         </nav>
       </form>
-
   );
 };
 
-export default LoginPage;
+export default RegisterPage;

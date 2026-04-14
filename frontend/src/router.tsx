@@ -3,27 +3,31 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './lib/authContext';
 import ProtectedRoute from './lib/ProtectedRoute';
+import AuthLayout from './components/layouts/AuthLayout';
 import LoginPage from './views/LoginPage';
+import RegisterPage from './views/RegisterPage';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import JugadoresPage from './views/JugadoresPage';
 import TorneosPage from './views/TorneosPage';
 import EquiposPage from './views/EquiposPage';
 import PartidosPage from './views/PartidosPage';
 import EstadisticasPage from './views/EstadisticasPage';
-import './App.css';
 
-function App() {
+export default function Router() {
   return (
     <BrowserRouter>
       <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover theme="colored" aria-label="Notifications" />
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+          </Route>
+          <Route path="/auth/register" element={<Navigate to="/register" replace />} />
 
           {/* Protected Routes */}
-          <Route
-            path="/dashboard"
+          <Route path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardLayout />
@@ -48,5 +52,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-export default App;

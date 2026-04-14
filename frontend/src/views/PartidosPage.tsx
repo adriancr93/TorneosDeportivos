@@ -4,9 +4,9 @@ import { equiposApi, partidosApi, torneosApi } from '../api/client';
 import type { Equipo, Partido, Torneo } from '../types';
 import StatsCard from '../components/dashboard/StatsCard';
 
-const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)]';
-const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] focus:border-[#5d87ff] focus:outline-none';
-const secondaryButtonClass = 'rounded-xl border border-[#dfe5ef] bg-white px-4 py-2.5 text-sm font-semibold text-[#2a3547] transition hover:bg-[#f3f7ff]';
+const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_16px_32px_rgba(2,6,23,0.35)]';
+const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] focus:border-[#5d87ff] focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-sky-400';
+const secondaryButtonClass = 'rounded-xl border border-[#dfe5ef] bg-white px-4 py-2.5 text-sm font-semibold text-[#2a3547] transition hover:bg-[#f3f7ff] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-800';
 const primaryButtonClass = 'rounded-xl bg-[#5d87ff] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4b74e8] disabled:opacity-60';
 
 const PartidosPage: React.FC = () => {
@@ -18,12 +18,12 @@ const PartidosPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const torneosEnGestion = useMemo(() => torneos.filter((torneo) => torneo.estado !== 'FINALIZADO'), [torneos]);
+
   const fetchTorneos = async () => {
     const [torneosData, equiposData] = await Promise.all([torneosApi.getAll(), equiposApi.getAll()]);
     setTorneos(torneosData);
     setEquipos(equiposData);
-    setSelectedTorneoId((current) => current || torneosData[0]?.torneoId || '');
-    return torneosData;
   };
 
   const fetchPartidos = async (torneoId: string) => {
@@ -39,10 +39,7 @@ const PartidosPage: React.FC = () => {
     const bootstrap = async () => {
       try {
         setLoading(true);
-        const data = await fetchTorneos();
-        if (data[0]?.torneoId) {
-          await fetchPartidos(data[0].torneoId);
-        }
+        await fetchTorneos();
       } catch (fetchError) {
         console.error(fetchError);
         toast.error('No se pudieron cargar torneos y partidos');
@@ -55,7 +52,11 @@ const PartidosPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedTorneoId) return;
+    if (!selectedTorneoId) {
+      setSelectedEquipoId('');
+      setPartidos([]);
+      return;
+    }
 
     setSelectedEquipoId('');
     void fetchPartidos(selectedTorneoId).catch((fetchError) => {
@@ -136,15 +137,15 @@ const PartidosPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-400">Cargando partidos...</div>;
+    return <div className="py-20 text-center text-slate-400 dark:text-slate-500">Cargando partidos...</div>;
   }
 
   return (
-    <div className="space-y-6 px-1 text-[#2a3547]">
+    <div className="space-y-6 px-1 text-[#2a3547] dark:text-slate-100">
       <section className={panelClass}>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5d87ff]">Calendario del torneo</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#2a3547]">Partidos dependientes del torneo</h1>
-        <p className="mt-2 text-sm text-[#5a6a85]">Visualiza cruces programados, genera fixture y monitorea resultados.</p>
+        <h1 className="mt-2 text-3xl font-bold text-[#2a3547] dark:text-slate-100">Partidos dependientes del torneo</h1>
+        <p className="mt-2 text-sm text-[#5a6a85] dark:text-slate-400">Visualiza cruces programados, genera fixture y monitorea resultados.</p>
       </section>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -156,18 +157,18 @@ const PartidosPage: React.FC = () => {
       <section className={panelClass}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-[#2a3547]">Torneo cargado</h2>
-            <p className="text-sm text-slate-400">La lista y las acciones cambian según el torneo seleccionado.</p>
+              <h2 className="text-2xl font-bold text-[#2a3547] dark:text-slate-100">Torneo cargado</h2>
+              <p className="text-sm text-slate-400 dark:text-slate-500">La lista y las acciones cambian según el torneo seleccionado.</p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <select className={`${inputClass} min-w-64`} value={selectedTorneoId} onChange={(event) => setSelectedTorneoId(event.target.value)}>
               <option value="">Seleccionar torneo</option>
-              {torneos.map((torneo) => (
+              {torneosEnGestion.map((torneo) => (
                 <option key={torneo.torneoId} value={torneo.torneoId}>{torneo.nombre}</option>
               ))}
             </select>
-            <select className={`${inputClass} min-w-64`} value={selectedEquipoId} onChange={(event) => setSelectedEquipoId(event.target.value)}>
+            <select className={`${inputClass} min-w-64`} value={selectedEquipoId} onChange={(event) => setSelectedEquipoId(event.target.value)} disabled={!selectedTorneoId}>
               <option value="">Todos los equipos</option>
               {equiposDisponibles.map((equipo) => (
                 <option key={equipo.equipoId} value={equipo.equipoId}>{equipo.nombre}</option>
@@ -179,35 +180,37 @@ const PartidosPage: React.FC = () => {
         </div>
 
         {partidosPorRonda.length === 0 ? (
-          <div className="mt-6 rounded-2xl border border-dashed border-[#d5e0f4] bg-[#f8fbff] p-6 text-sm text-[#5a6a85]">
-            Este torneo todavía no tiene partidos. Usa &quot;Generar Fixture&quot; o simúlalo desde Torneos.
+          <div className="mt-6 rounded-2xl border border-dashed border-[#d5e0f4] bg-[#f8fbff] p-6 text-sm text-[#5a6a85] dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400">
+            {selectedTorneoId
+              ? 'Este torneo todavía no tiene partidos. Usa "Generar Fixture" o simúlalo desde Torneos.'
+              : 'Selecciona un torneo para cargar la información de partidos.'}
           </div>
         ) : (
           partidosPorRonda.map(({ ronda, partidos: partidosRonda }) => {
             const isFinal = ronda === 'Final';
             const isSemifinal = ronda === 'Semifinal';
-            const badgeColor = isFinal ? 'bg-amber-100 text-amber-700 border-amber-300' : isSemifinal ? 'bg-violet-100 text-violet-700 border-violet-300' : 'bg-blue-100 text-blue-700 border-blue-300';
+            const badgeColor = isFinal ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-400/40' : isSemifinal ? 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-400/40' : 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-400/40';
             return (
               <div key={ronda} className="mt-6">
                 <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-widest ${badgeColor}`}>{ronda}</span>
                 <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-2">
                   {partidosRonda.map((partido) => (
-                    <article key={partido.partidoId} className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4">
+                    <article key={partido.partidoId} className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4 dark:border-slate-700 dark:bg-slate-800/80">
                       <div className="flex items-center justify-between gap-3">
-                        <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-300">{partido.estado}</span>
-                        <span className="text-xs text-slate-500">{partido.fecha}</span>
+                        <span className="rounded-full border border-[#dfe5ef] px-3 py-1 text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">{partido.estado}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{partido.fecha}</span>
                       </div>
                       <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                         <div>
-                          <p className="text-lg font-bold text-[#2a3547]">{partido.equipoLocal}</p>
-                          <p className="text-xs text-slate-500">Local</p>
+                          <p className="text-lg font-bold text-[#2a3547] dark:text-slate-100">{partido.equipoLocal}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Local</p>
                         </div>
                         <div className="text-center">
-                          {partido.estado === 'JUGADO' ? <p className="text-3xl font-black text-[#2a3547]">{partido.golesLocal} - {partido.golesVisitante}</p> : <p className="text-sm font-semibold text-amber-500">Pendiente</p>}
+                          {partido.estado === 'JUGADO' ? <p className="text-3xl font-black text-[#2a3547] dark:text-slate-100">{partido.golesLocal} - {partido.golesVisitante}</p> : <p className="text-sm font-semibold text-amber-500 dark:text-amber-300">Pendiente</p>}
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-[#2a3547]">{partido.equipoVisitante}</p>
-                          <p className="text-xs text-slate-500">Visitante</p>
+                          <p className="text-lg font-bold text-[#2a3547] dark:text-slate-100">{partido.equipoVisitante}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Visitante</p>
                         </div>
                       </div>
                     </article>
@@ -220,11 +223,11 @@ const PartidosPage: React.FC = () => {
       </section>
 
       <section className={panelClass}>
-        <h2 className="text-2xl font-bold text-[#2a3547]">Resumen rápido</h2>
+        <h2 className="text-2xl font-bold text-[#2a3547] dark:text-slate-100">Resumen rápido</h2>
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8]">Pendientes</p><p className="mt-2 text-3xl font-black text-[#2a3547]">{pendientes}</p></div>
-          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8]">Jugados</p><p className="mt-2 text-3xl font-black text-[#2a3547]">{jugados}</p></div>
-          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8]">Goles</p><p className="mt-2 text-3xl font-black text-[#2a3547]">{totalGoles}</p></div>
+          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4 dark:border-slate-700 dark:bg-slate-800/80"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8] dark:text-slate-500">Pendientes</p><p className="mt-2 text-3xl font-black text-[#2a3547] dark:text-slate-100">{pendientes}</p></div>
+          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4 dark:border-slate-700 dark:bg-slate-800/80"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8] dark:text-slate-500">Jugados</p><p className="mt-2 text-3xl font-black text-[#2a3547] dark:text-slate-100">{jugados}</p></div>
+          <div className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4 dark:border-slate-700 dark:bg-slate-800/80"><p className="text-xs uppercase tracking-[0.2em] text-[#7a8ca8] dark:text-slate-500">Goles</p><p className="mt-2 text-3xl font-black text-[#2a3547] dark:text-slate-100">{totalGoles}</p></div>
         </div>
       </section>
     </div>

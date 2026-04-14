@@ -4,8 +4,8 @@ import { equiposApi, jugadoresApi } from '../api/client';
 import type { Equipo, Jugador } from '../types';
 import StatsCard from '../components/dashboard/StatsCard';
 
-const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)]';
-const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] placeholder:text-[#91a1bc] focus:border-[#5d87ff] focus:outline-none';
+const panelClass = 'rounded-lg border border-[#dfe5ef] bg-white p-6 shadow-[0_8px_24px_rgba(133,146,173,0.14)] dark:border-slate-800 dark:bg-slate-900 dark:shadow-[0_16px_32px_rgba(2,6,23,0.35)]';
+const inputClass = 'w-full rounded-xl border border-[#dfe5ef] bg-white px-4 py-3 text-sm text-[#2a3547] placeholder:text-[#91a1bc] focus:border-[#5d87ff] focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-sky-400';
 const buttonClass = 'rounded-xl bg-[#5d87ff] px-4 py-2.5 text-sm font-bold text-white shadow-[0_9px_18px_rgba(93,135,255,0.25)] transition hover:bg-[#4b74e8]';
 
 const JugadoresPage: React.FC = () => {
@@ -20,9 +20,6 @@ const JugadoresPage: React.FC = () => {
     const [equiposData, jugadoresData] = await Promise.all([equiposApi.getAll(), jugadoresApi.getAll()]);
     setEquipos(equiposData);
     setJugadores(jugadoresData);
-    const equipoId = equiposData[0]?.equipoId || '';
-    setSelectedEquipoId((current) => current || equipoId);
-    setForm((current) => ({ ...current, equipoId: current.equipoId || equipoId }));
   };
 
   useEffect(() => {
@@ -41,7 +38,7 @@ const JugadoresPage: React.FC = () => {
     void bootstrap();
   }, []);
 
-  const visibleJugadores = selectedEquipoId ? jugadores.filter((jugador) => jugador.equipoId === selectedEquipoId) : jugadores;
+  const visibleJugadores = selectedEquipoId ? jugadores.filter((jugador) => jugador.equipoId === selectedEquipoId) : [];
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -71,15 +68,15 @@ const JugadoresPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-400">Cargando jugadores...</div>;
+    return <div className="py-20 text-center text-slate-400 dark:text-slate-500">Cargando jugadores...</div>;
   }
 
   return (
-    <div className="space-y-6 px-1 text-[#2a3547]">
+    <div className="space-y-6 px-1 text-[#2a3547] dark:text-slate-100">
       <section className={panelClass}>
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#5d87ff]">Plantillas</p>
-        <h1 className="mt-2 text-3xl font-bold text-[#2a3547]">Crear nuevos jugadores</h1>
-        <p className="mt-2 text-sm text-[#5a6a85]">Administra fichas de jugadores por equipo, posicion y dorsal.</p>
+        <h1 className="mt-2 text-3xl font-bold text-[#2a3547] dark:text-slate-100">Crear nuevos jugadores</h1>
+        <p className="mt-2 text-sm text-[#5a6a85] dark:text-slate-400">Administra fichas de jugadores por equipo, posicion y dorsal.</p>
       </section>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
@@ -90,7 +87,7 @@ const JugadoresPage: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.35fr]">
         <section className={panelClass}>
-          <h2 className="text-2xl font-bold text-[#2a3547]">Crear Jugador</h2>
+          <h2 className="text-2xl font-bold text-[#2a3547] dark:text-slate-100">Crear Jugador</h2>
           <form className="mt-5 space-y-4" onSubmit={handleCreate}>
             <input className={inputClass} placeholder="Nombre completo" value={form.nombre} onChange={(event) => setForm((current) => ({ ...current, nombre: event.target.value }))} required />
             <select className={inputClass} value={form.posicion} onChange={(event) => setForm((current) => ({ ...current, posicion: event.target.value }))}>
@@ -116,37 +113,43 @@ const JugadoresPage: React.FC = () => {
         <section className={panelClass}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-[#2a3547]">Plantilla por equipo</h2>
-              <p className="text-sm text-slate-400">Filtra la lista según el equipo seleccionado.</p>
+              <h2 className="text-2xl font-bold text-[#2a3547] dark:text-slate-100">Plantilla por equipo</h2>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Selecciona un equipo para cargar sus jugadores.</p>
             </div>
             <select className={`${inputClass} max-w-xs`} value={selectedEquipoId} onChange={(event) => setSelectedEquipoId(event.target.value)}>
-              <option value="">Todos los equipos</option>
+              <option value="">Seleccionar equipo</option>
               {equipos.map((equipo) => (
                 <option key={equipo.equipoId} value={equipo.equipoId}>{equipo.nombre}</option>
               ))}
             </select>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-            {visibleJugadores.map((jugador) => {
-              const equipo = equipos.find((item) => item.equipoId === jugador.equipoId);
-              return (
-                <article key={jugador.jugadorId} className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-[#2a3547]">{jugador.nombre}</h3>
-                      <p className="text-sm text-slate-400">{equipo?.nombre || 'Sin equipo'}</p>
+          {!selectedEquipoId ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-[#d5e0f4] bg-[#f8fbff] p-5 text-sm text-[#5a6a85] dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-400">
+              Selecciona un equipo para mostrar su plantilla.
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+              {visibleJugadores.map((jugador) => {
+                const equipo = equipos.find((item) => item.equipoId === jugador.equipoId);
+                return (
+                  <article key={jugador.jugadorId} className="rounded-2xl border border-[#e6edf8] bg-[#f8fbff] p-4 dark:border-slate-700 dark:bg-slate-800/80">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-[#2a3547] dark:text-slate-100">{jugador.nombre}</h3>
+                        <p className="text-sm text-slate-400 dark:text-slate-500">{equipo?.nombre || 'Sin equipo'}</p>
+                      </div>
+                      <span className="rounded-xl bg-cyan-400/15 px-3 py-1 text-xs font-bold text-cyan-700 dark:text-cyan-200">#{jugador.numero}</span>
                     </div>
-                    <span className="rounded-xl bg-cyan-400/15 px-3 py-1 text-xs font-bold text-cyan-200">#{jugador.numero}</span>
-                  </div>
-                  <div className="mt-3 text-sm text-slate-300">
-                    <p><span className="text-slate-500">Posición:</span> {jugador.posicion}</p>
-                    <p><span className="text-slate-500">Edad:</span> {jugador.edad || 'N/D'}</p>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                    <div className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                      <p><span className="text-slate-500 dark:text-slate-400">Posición:</span> {jugador.posicion}</p>
+                      <p><span className="text-slate-500 dark:text-slate-400">Edad:</span> {jugador.edad || 'N/D'}</p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
     </div>

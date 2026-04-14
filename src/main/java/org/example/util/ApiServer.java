@@ -12,9 +12,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -195,6 +193,7 @@ public class ApiServer {
             String sede = stringValue(body.get("sede"));
             String fechaInicio = stringValue(body.get("fechaInicio"));
             String fechaFin = stringValue(body.get("fechaFin"));
+            String modalidadRaw = stringValue(body.get("modalidad"));
             List<String> equipoIds = uniqueStringList(body.get("equipoIds"));
 
             if (nombre.isBlank() || fechaInicio.isBlank() || fechaFin.isBlank()) {
@@ -219,6 +218,7 @@ public class ApiServer {
             torneo.setSede(sede.isBlank() ? "Por definir" : sede);
             torneo.setFechaInicio(fechaInicio);
             torneo.setFechaFin(fechaFin);
+            torneo.setModalidad(parseModalidad(modalidadRaw));
             torneo.setEquipoIds(equipoIds);
             Torneo creado = torneoService.crearTorneo(torneo);
             sendJson(exchange, 201, Map.of("success", true, "message", "Torneo creado", "torneo", mapTorneo(creado)));
@@ -354,6 +354,10 @@ public class ApiServer {
         try {
             String torneoId = extractTorneoId(exchange);
             Torneo torneo = requireTorneo(torneoId);
+            if (torneo.getEstado() == TorneoEstado.FINALIZADO) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El torneo ya finalizó y no admite nuevas operaciones"));
+                return;
+            }
             if (torneo.getEquipoIds() == null || torneo.getEquipoIds().size() < MIN_EQUIPOS_TORNEO) {
                 sendJson(exchange, 400, Map.of("success", false, "message", "El torneo requiere al menos " + MIN_EQUIPOS_TORNEO + " equipos para generar partidos"));
                 return;
@@ -386,6 +390,10 @@ public class ApiServer {
         try {
             String torneoId = extractTorneoId(exchange);
             Torneo torneo = requireTorneo(torneoId);
+            if (torneo.getEstado() == TorneoEstado.FINALIZADO) {
+                sendJson(exchange, 400, Map.of("success", false, "message", "El torneo ya fue finalizado. Consulta sus estadísticas."));
+                return;
+            }
             if (torneo.getEquipoIds() == null || torneo.getEquipoIds().size() < MIN_EQUIPOS_TORNEO) {
                 sendJson(exchange, 400, Map.of("success", false, "message", "El torneo requiere al menos " + MIN_EQUIPOS_TORNEO + " equipos para simular"));
                 return;
@@ -394,13 +402,29 @@ public class ApiServer {
             torneoService.activarTorneo(torneo.getId());
             List<Partido> partidos = partidoService.generarPartidos(torneo.getId());
 
-            // Simulate round-by-round elimination bracket
-            simularEliminatoria(torneo.getId(), partidos);
-
-            Estadistica estadistica = estadisticaService.generarEstadisticas(torneo.getId());
+            Estadistica estadistica;
+            Torneo torneoActualizado;
+            if (torneo.getModalidad() == ModalidadTorneo.LIGA) {
+                partidoService.simularLiga(torneo.getId(), partidos);
+                estadistica = estadisticaService.generarEstadisticas(torneo.getId());
+                torneoActualizado = registrarPodioDesdeTabla(torneo.getId(), estadistica);
+            } else {
+                simularEliminatoria(torneo.getId(), partidos);
+                Map<String, String> podio = partidoService.obtenerPodioTorneo(torneo.getId());
+                torneoActualizado = podio.isEmpty()
+                        ? torneoService.buscarPorId(torneo.getId())
+                        : torneoService.registrarPodioFinal(
+                                torneo.getId(),
+                                podio.get("campeonId"),
+                                podio.get("subcampeonId"),
+                                podio.get("tercerLugarId")
+                        );
+                estadistica = estadisticaService.generarEstadisticas(torneo.getId());
+            }
             sendJson(exchange, 200, Map.of(
                     "success", true,
                     "message", "Torneo simulado correctamente",
+                    "torneo", mapTorneo(torneoActualizado),
                     "partidos", partidoService.listarPartidosPorTorneo(torneo.getId()).stream().map(this::mapPartido).collect(Collectors.toList()),
                     "standings", buildStandings(torneo.getId(), estadistica),
                     "goleadores", buildPlayerRanking(torneo.getId(), false),
@@ -489,6 +513,29 @@ public class ApiServer {
         partidoService.simularEliminatoria(torneoId, initialPartidos);
     }
 
+    private ModalidadTorneo parseModalidad(String modalidadRaw) {
+        if (modalidadRaw == null || modalidadRaw.isBlank()) {
+            return ModalidadTorneo.ELIMINATORIA;
+        }
+
+        try {
+            return ModalidadTorneo.valueOf(modalidadRaw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("La modalidad debe ser LIGA o ELIMINATORIA");
+        }
+    }
+
+    private Torneo registrarPodioDesdeTabla(String torneoId, Estadistica estadistica) {
+        if (estadistica == null || estadistica.getTabla() == null || estadistica.getTabla().isEmpty()) {
+            return torneoService.buscarPorId(torneoId);
+        }
+
+        String campeonId = estadistica.getTabla().size() > 0 ? estadistica.getTabla().get(0).getEquipoId() : null;
+        String subcampeonId = estadistica.getTabla().size() > 1 ? estadistica.getTabla().get(1).getEquipoId() : null;
+        String tercerLugarId = estadistica.getTabla().size() > 2 ? estadistica.getTabla().get(2).getEquipoId() : null;
+        return torneoService.registrarPodioFinal(torneoId, campeonId, subcampeonId, tercerLugarId);
+    }
+
     private List<Map<String, Object>> buildStandings(String torneoId, Estadistica estadistica) {
         if (estadistica == null || estadistica.getTabla() == null) {
             return Collections.emptyList();
@@ -560,14 +607,24 @@ public class ApiServer {
 
     private Map<String, Object> mapTorneo(Torneo torneo) {
         Map<String, Object> row = new LinkedHashMap<>();
+        Equipo campeon = torneo.getCampeonId() != null ? equipoService.buscarPorId(torneo.getCampeonId()) : null;
+        Equipo subcampeon = torneo.getSubcampeonId() != null ? equipoService.buscarPorId(torneo.getSubcampeonId()) : null;
+        Equipo tercerLugar = torneo.getTercerLugarId() != null ? equipoService.buscarPorId(torneo.getTercerLugarId()) : null;
         row.put("torneoId", torneo.getId());
         row.put("nombre", torneo.getNombre());
         row.put("sede", torneo.getSede());
         row.put("fechaInicio", torneo.getFechaInicio());
         row.put("fechaFin", torneo.getFechaFin());
+        row.put("modalidad", torneo.getModalidad() != null ? torneo.getModalidad().name() : ModalidadTorneo.ELIMINATORIA.name());
         row.put("estado", torneo.getEstado() != null ? torneo.getEstado().name() : TorneoEstado.CREADO.name());
         row.put("equipos", torneo.getEquipoIds() != null ? torneo.getEquipoIds() : Collections.emptyList());
         row.put("cantidadEquipos", torneo.getEquipoIds() != null ? torneo.getEquipoIds().size() : 0);
+        row.put("campeonId", torneo.getCampeonId());
+        row.put("subcampeonId", torneo.getSubcampeonId());
+        row.put("tercerLugarId", torneo.getTercerLugarId());
+        row.put("campeon", campeon != null ? campeon.getNombre() : null);
+        row.put("subcampeon", subcampeon != null ? subcampeon.getNombre() : null);
+        row.put("tercerLugar", tercerLugar != null ? tercerLugar.getNombre() : null);
         return row;
     }
 

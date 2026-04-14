@@ -27,9 +27,16 @@ const normalizeTorneo = (raw: Record<string, unknown>): Torneo => ({
   sede: String(raw.sede ?? ''),
   fechaInicio: String(raw.fechaInicio ?? ''),
   fechaFin: String(raw.fechaFin ?? ''),
+  modalidad: String(raw.modalidad ?? 'ELIMINATORIA'),
   estado: String(raw.estado ?? ''),
   equipos: (raw.equipos as string[] | undefined) ?? (raw.equipoIds as string[] | undefined) ?? [],
   cantidadEquipos: Number(raw.cantidadEquipos ?? ((raw.equipos as unknown[] | undefined)?.length ?? (raw.equipoIds as unknown[] | undefined)?.length ?? 0)),
+  campeonId: raw.campeonId ? String(raw.campeonId) : undefined,
+  subcampeonId: raw.subcampeonId ? String(raw.subcampeonId) : undefined,
+  tercerLugarId: raw.tercerLugarId ? String(raw.tercerLugarId) : undefined,
+  campeon: raw.campeon ? String(raw.campeon) : undefined,
+  subcampeon: raw.subcampeon ? String(raw.subcampeon) : undefined,
+  tercerLugar: raw.tercerLugar ? String(raw.tercerLugar) : undefined,
 });
 
 const normalizePartido = (raw: Record<string, unknown>): Partido => ({
@@ -127,7 +134,7 @@ export const torneosApi = {
     return response.data.map(normalizeTorneo);
   },
 
-  create: async (payload: { nombre: string; sede: string; fechaInicio: string; fechaFin: string; equipoIds: string[] }): Promise<ApiActionResponse<Torneo>> => {
+  create: async (payload: { nombre: string; sede: string; fechaInicio: string; fechaFin: string; modalidad: 'ELIMINATORIA' | 'LIGA'; equipoIds: string[] }): Promise<ApiActionResponse<Torneo>> => {
     const response = await apiClient.post<ApiActionResponse<Torneo>>('/torneos', payload);
     return response.data;
   },

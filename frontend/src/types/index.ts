@@ -43,9 +43,16 @@ export interface Torneo {
   sede?: string;
   fechaInicio: string;
   fechaFin: string;
+  modalidad?: 'ELIMINATORIA' | 'LIGA' | string;
   equipos?: string[];
   cantidadEquipos?: number;
   estado?: string;
+  campeonId?: string;
+  subcampeonId?: string;
+  tercerLugarId?: string;
+  campeon?: string;
+  subcampeon?: string;
+  tercerLugar?: string;
 }
 
 export interface Partido {

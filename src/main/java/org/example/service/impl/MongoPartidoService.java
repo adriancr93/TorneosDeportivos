@@ -2,6 +2,7 @@ package org.example.service.impl;
 
 import org.example.interfaces.IPartidoService;
 import org.example.model.Jugador;
+import org.example.model.ModalidadTorneo;
 import org.example.model.Partido;
 import org.example.model.PartidoEstado;
 import org.example.model.Torneo;
@@ -41,7 +42,15 @@ public class MongoPartidoService implements IPartidoService {
             return existentes;
         }
 
-        List<String> equipos = new ArrayList<>(torneo.getEquipoIds());
+        if (torneo.getModalidad() == ModalidadTorneo.LIGA) {
+            return generarPartidosLiga(torneoId, torneo.getEquipoIds());
+        }
+
+        return generarPartidosEliminatoria(torneoId, torneo.getEquipoIds());
+    }
+
+    private List<Partido> generarPartidosEliminatoria(String torneoId, List<String> equipoIds) {
+        List<String> equipos = new ArrayList<>(equipoIds);
         Collections.shuffle(equipos);
 
         // Pad to next power of 2 with BYEs (null)
@@ -88,6 +97,31 @@ public class MongoPartidoService implements IPartidoService {
             }
             currentRound = nextRound;
         }
+        return generados;
+    }
+
+    private List<Partido> generarPartidosLiga(String torneoId, List<String> equipoIds) {
+        List<Partido> generados = new ArrayList<>();
+        int jornada = 1;
+
+        for (int i = 0; i < equipoIds.size(); i++) {
+            for (int j = i + 1; j < equipoIds.size(); j++) {
+                Partido partido = new Partido();
+                partido.setId(UUID.randomUUID().toString().substring(0, 8));
+                partido.setTorneoId(torneoId);
+                partido.setEquipoLocalId(equipoIds.get(i));
+                partido.setEquipoVisitanteId(equipoIds.get(j));
+                partido.setEstado(PartidoEstado.PENDIENTE);
+                partido.setRonda("Jornada " + jornada);
+                partido.setFecha("Jornada " + jornada);
+                partido.setGolesPorJugador(new HashMap<>());
+                partido.setAsistenciasPorJugador(new HashMap<>());
+                repo.save(partido);
+                generados.add(partido);
+                jornada++;
+            }
+        }
+
         return generados;
     }
 
@@ -162,17 +196,73 @@ public class MongoPartidoService implements IPartidoService {
             }
 
             ganadores.clear();
+            List<String> perdedores = new ArrayList<>();
             for (Partido partido : nextPartidos) {
                 simularPartidoAleatorio(partido);
                 ganadores.add(obtenerGanador(partido));
+                perdedores.add(obtenerPerdedor(partido));
+            }
+
+            if ("Semifinal".equals(nextRound) && perdedores.size() == 2) {
+                Partido tercerLugar = new Partido();
+                tercerLugar.setId(UUID.randomUUID().toString().substring(0, 8));
+                tercerLugar.setTorneoId(torneoId);
+                tercerLugar.setEquipoLocalId(perdedores.get(0));
+                tercerLugar.setEquipoVisitanteId(perdedores.get(1));
+                tercerLugar.setEstado(PartidoEstado.PENDIENTE);
+                tercerLugar.setRonda("Tercer Lugar");
+                tercerLugar.setFecha("Tercer Lugar");
+                tercerLugar.setGolesPorJugador(new HashMap<>());
+                tercerLugar.setAsistenciasPorJugador(new HashMap<>());
+                repo.save(tercerLugar);
+                simularPartidoAleatorio(tercerLugar);
             }
         }
     }
 
+    public void simularLiga(String torneoId, List<Partido> partidos) {
+        for (Partido partido : partidos) {
+            if (partido.getEstado() == PartidoEstado.JUGADO) {
+                continue;
+            }
+            simularPartidoAleatorio(partido, true);
+        }
+    }
+
+    public Map<String, String> obtenerPodioTorneo(String torneoId) {
+        List<Partido> partidos = repo.findByTorneoId(torneoId);
+
+        Partido finalPartido = partidos.stream()
+                .filter(partido -> "Final".equals(partido.getRonda()))
+                .filter(partido -> partido.getEstado() == PartidoEstado.JUGADO)
+                .findFirst()
+                .orElse(null);
+
+        if (finalPartido == null) {
+            return Map.of();
+        }
+
+        Partido tercerLugarPartido = partidos.stream()
+                .filter(partido -> "Tercer Lugar".equals(partido.getRonda()))
+                .filter(partido -> partido.getEstado() == PartidoEstado.JUGADO)
+                .findFirst()
+                .orElse(null);
+
+        Map<String, String> podio = new HashMap<>();
+        podio.put("campeonId", obtenerGanador(finalPartido));
+        podio.put("subcampeonId", obtenerPerdedor(finalPartido));
+        podio.put("tercerLugarId", tercerLugarPartido != null ? obtenerGanador(tercerLugarPartido) : null);
+        return podio;
+    }
+
     private void simularPartidoAleatorio(Partido partido) {
+        simularPartidoAleatorio(partido, false);
+    }
+
+    private void simularPartidoAleatorio(Partido partido, boolean permitirEmpate) {
         int golesLocal = ThreadLocalRandom.current().nextInt(0, 5);
         int golesVisitante = ThreadLocalRandom.current().nextInt(0, 5);
-        while (golesLocal == golesVisitante) {
+        while (!permitirEmpate && golesLocal == golesVisitante) {
             golesLocal = ThreadLocalRandom.current().nextInt(0, 5);
             golesVisitante = ThreadLocalRandom.current().nextInt(0, 5);
         }
@@ -213,5 +303,11 @@ public class MongoPartidoService implements IPartidoService {
         return partido.getGolesLocal() > partido.getGolesVisitante()
                 ? partido.getEquipoLocalId()
                 : partido.getEquipoVisitanteId();
+    }
+
+    private String obtenerPerdedor(Partido partido) {
+        return partido.getGolesLocal() > partido.getGolesVisitante()
+                ? partido.getEquipoVisitanteId()
+                : partido.getEquipoLocalId();
     }
 }
